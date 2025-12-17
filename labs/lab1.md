@@ -461,9 +461,7 @@ With this, we transformed a standard AXI4 peripheral template into a hardware co
 
 Remember that we instantiated in the user logic section a module named `mergeCore`? We have the AXI4 registers to control it, but we need to develop this module's logic to make it actually be able to merge the two arrays together.
 
-We first add sources by clicking the "+" in the `Sources` section. Select "Add or create design sources" when prompted, and then select "Create File". Make it a Verilog file, with the name `mergeCore`.
-
-Click and open [`mergeCore.v`](/hw_files/mergeCore.v). You will find under the `hw_files` folder a completed file for you. Feel free to challenge yourself and write it yourself, or modify the logic to do something else other than merging two arrays later on after completing this tutorial.
+We first add sources by clicking the "+" in the `Sources` section. Select "Add or create design sources" when prompted, and then select "Add Files" to add [`mergeCore.v`](/hw_files/mergeCore.v) to the project.
 
 ![](/images/mergecore.jpg)
 
@@ -485,14 +483,18 @@ The only changes required is in the "Native Ports" tab.
 
 ![array-fifo](/images/lab1-array-fifo.png)
 
-> Select "1024" instead of "2048" for write/read depth of arrayFifo1 and arrayFifo2, but leave it at "2048" for mergedFifo.
-> Pay attention to the naming - it must match the module name which you used in the `mergeCore` code. For example, the picture shows the instantiation for `mergedFifo`, but you should instantiate another FIFO Generator for `arrayFifo`, which will be used by both `arrayFifo1` and `arrayFifo2`.
+> Select "1024" for write/read depth of arrayFifo1 and arrayFifo2, and select "2048" for mergedFifo.
+> Pay attention to the naming - it must match the module name which you used in the `mergeCore` code. The screenshot only shows the instantiation for `mergedFifo`. You should instantiate another FIFO Generator for `arrayFifo` with depth 1024, which will be used by both `arrayFifo1` and `arrayFifo2`.
 
 After completion, click on `Edit Packaged IP`. Keep a record of the Identification tab of the IP:
 
 ![](/images/lab1-edit-pkg.png)
 
 [](/images/pkg_ip.jpg)
+
+Then click on `Re-Package IP` under `Review and Package IP`.
+
+![](/images/lab1-package-ip.png)
 
 Now return to the original `merge_array` Vivado project.
 
@@ -502,6 +504,8 @@ In the block design, add the `merge_array_v1.0` IP.
 [](/images/merge_array_bd.jpg)
 
 Run connection automation, then right click on `design_1` (with the orange square on the left) and "create HDL wrapper".
+
+![](/images/lab1-create-hdl-wrapper.png)
 
 5. Generating bitstream and required files
 
