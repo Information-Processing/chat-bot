@@ -72,7 +72,7 @@ source base.tcl
 
 > **Note:** If you need help launching the `.tcl` script from the terminal or Vivado GUI, refer to these [instructions](https://xilinx.github.io/Alveo-Cards/cards/ul3524/build/html/docs/Docs/loading_ref_proj.html).
 
-![](/images/source.jpg)
+![](/images/lab2-source-tcl.jpg)
 
 Since the BaseOverlay connects to every peripheral on the PYNQ board, the design is quite large. Expect `source base.tcl` to take approximately 10 minutes to complete.
 
@@ -82,15 +82,15 @@ Once the block design is built, let's begin by **understanding** the audio modul
 
 1. Search for the `audio_direct` module in the "Sources" window.
 
-![](/images/audio_direct.jpg)
+![](/images/lab2-audio-direct-module.jpg)
 
 2. Double-click on `base_audio_direct_0_0` and select "Edit in IP Packager".
 
-![](/images/editinip.jpg)
+![](/images/lab2-edit-in-ip-packager.jpg)
 
 This will open a new Vivado window that displays the design source files within the `audio_direct_v1_1` IP. Open the file hierarchy under "Design Sources" to find:
 
-![](/images/audio_direct_layers.jpg)
+![](/images/lab2-audio-direct-hierarchy.jpg)
 
 **Understanding the Hierarchy:**
 
@@ -127,7 +127,7 @@ which is compiled from the C++ audio drivers using CMake.
 
 Since the BaseOverlay is large and time-consuming to synthesize and implement, a simplified version has been provided. Source the `bd/lab2-skeleton/lab2-skeleton.tcl` script to open the skeleton design. You will see the following incomplete block design:
 
-![](/images/skeleton.jpg)
+![](/images/lab2-skeleton-design.jpg)
 
 **Objective:**
 
@@ -135,7 +135,7 @@ The goal of this hardware section is to create a block design that performs PDM-
 
 Here is what the final design should look like:
 
-![](/images/end-goal.jpg)
+![](/images/lab2-end-goal-design.jpg)
 
 Now let's begin the hardware implementation!
 
@@ -163,21 +163,21 @@ Decimation reduces the sampling rate by retaining only every Nth sample while ap
 5. Copy and paste the completed `pdm_mic.v` from the `hw_files` directory in this repository.
 6. You will see two question marks under `pdm_microphone` in the Design Sources hierarchy: `pdm_clk_gen` and `cic_compiler`.
 
-![](/images/pdm_mic.jpg)
+![](/images/lab2-pdm-mic-sources.jpg)
 
 7. Repeat the file creation procedure for `pdm_clk_gen`.
 8. For `cic_compiler`, click on "IP Catalog" in the sidebar under "Project Manager".
 
-![](/images/cic.jpg)
+![](/images/lab2-cic-ip-catalog.jpg)
 
 9. Configure the CIC Compiler as shown below:
 
-![](/images/cic1.jpg)
-![](/images/cic2.jpg)
+![](/images/lab2-cic-config-1.jpg)
+![](/images/lab2-cic-config-2.jpg)
 
 10. The final design should look like this:
 
-![](/images/audio_frontend.jpg)
+![](/images/lab2-audio-frontend.jpg)
 
 > **Reference:** If you need additional guidance, refer to this [article on CIC compiler PDM-to-PCM decimation](https://community.element14.com/challenges-projects/design-challenges/pathprogrammable3/b/blog/posts/p2p3-amd-vivado-cascaded-integrator-comb-cic-compiler-pdm-microphone-to-pcm-decimation).
 
@@ -185,12 +185,12 @@ Decimation reduces the sampling rate by retaining only every Nth sample while ap
 
 11. Select **Tools > Create and Package New IP**. You will see the following options:
 
-![](/images/package_ip.jpg)
+![](/images/lab2-package-ip.jpg)
 
 12. Select "Package your current project" and click through the default settings.
 13. Complete the packaging process:
 
-![](/images/package_ip_if.jpg)
+![](/images/lab2-package-ip-interface.jpg)
 
 ### Task 2C: Modifying the audio_direct IP to Work with PCM Data
 
@@ -202,7 +202,7 @@ The BaseOverlay's `audio_direct` module uses an AXI4 peripheral controlled by MM
 
 Since we're converting the PDM input from the microphone to PCM, we must modify the RX (receive) FIFO to accept 32-bit inputs instead of 1-bit inputs. PCM uses 32 bits while PDM uses 1 bit in the current design. At this stage, we won't modify the TX (transmit) FIFO.
 
-![](/images/audio_direct_new.jpg)
+![](/images/lab2-audio-direct-modified.jpg)
 
 The figure above shows the target `audio_direct_v1_1` hierarchy. We will replace the old VHDL AXI4 peripheral file (`audio_direct_v1_1_S_AXI_inst`) with a newer Verilog version.
 
@@ -240,11 +240,11 @@ Now let's connect the audio frontend created in Task 2B with the modified `audio
    - Add the path where you saved your IP projects
    - **Tip:** If you saved all Vivado projects in the same directory (e.g., `vivado_ws`), add that top-level directory, and Vivado will auto-detect all IPs within it.
 
-![](/images/add_ip_path.jpg)
+![](/images/lab2-add-ip-repository.jpg)
 
 3. Add the IPs to the block design and connect them as shown:
 
-![](/images/design.jpg)
+![](/images/lab2-final-design.jpg)
 
 **Creating Ports:**
 
