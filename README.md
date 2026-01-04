@@ -96,4 +96,5 @@ Created by:
 [Eleanor Clifford](https://eleanor.clifford.lol/),
 [Sarim Baig]() and 
 [Aaron Zhao](https://aaron-zhao123.github.io/)
-* Lead dev on lab materials
+
+\* Lead dev on lab materials
