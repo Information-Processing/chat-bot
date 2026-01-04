@@ -90,8 +90,10 @@ You will also be awarded additional marks for close-to-metal implementations.
 --- 
 
 Created by:
-[Kevin Lau](https://uk.linkedin.com/in/kevinlau01),
+[Kevin Lau*](https://uk.linkedin.com/in/kevinlau01),
+[Sanjit Raman](https://sanjitraman.com/)
 [Cheng Zhang](https://chengzhang-98.github.io/blog/),
 [Eleanor Clifford](https://eleanor.clifford.lol/),
 [Sarim Baig]() and 
 [Aaron Zhao](https://aaron-zhao123.github.io/)
+* Lead dev on lab materials
