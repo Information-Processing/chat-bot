@@ -22,8 +22,9 @@ There will be 4 lab weeks (2 hours of lab per week). The labs are designed to be
 | 1 | Lab 1 | Introduction to PYNQ and Vivado |
 | 2 | Lab 2 | Audio Processing |
 | 3 | Lab 3 | Building the chatbot |
-| 4 | Lab 4 | AWS |
-| Optional | Lab 5 | Extensions |
+| 4 | Lab 4 | AWS and NoSQL database |
+| 5 | Lab 5 | SQL database |
+| Optional | Lab 6 | Extensions |
 
 ## Important dates & Assessment info
 
