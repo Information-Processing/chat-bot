@@ -1138,16 +1138,16 @@ proc create_root_design { parentCell } {
   connect_bd_net -net pdm_microphone_0_mic_clk [get_bd_pins audio_direct_0/mic_clk] [get_bd_pins pdm_microphone_0/mic_clk]
   connect_bd_net -net pdm_microphone_0_mic_data_valid [get_bd_pins audio_direct_0/mic_data_valid] [get_bd_pins pdm_microphone_0/mic_data_valid]
   connect_bd_net -net pdm_microphone_0_mic_pcm_data [get_bd_pins audio_direct_0/pcm_data_in] [get_bd_pins pdm_microphone_0/mic_pcm_data]
-  connect_bd_net -net ps7_0_FCLK_CLK0 [get_bd_pins audio_direct_0/s_axi_aclk] [get_bd_pins pdm_microphone_0/clk] [get_bd_pins ps7_0/FCLK_CLK0] [get_bd_pins ps7_0/M_AXI_GP0_ACLK] [get_bd_pins ps7_0/S_AXI_GP0_ACLK] [get_bd_pins ps7_0_axi_periph/ACLK] [get_bd_pins ps7_0_axi_periph/M00_ACLK] [get_bd_pins ps7_0_axi_periph/S00_ACLK] [get_bd_pins rst_ps7_0_100M/slowest_sync_clk]
+  connect_bd_net -net ps7_0_FCLK_CLK0 [get_bd_pins pdm_microphone_0/clk] [get_bd_pins ps7_0/FCLK_CLK0] [get_bd_pins ps7_0/M_AXI_GP0_ACLK] [get_bd_pins ps7_0/S_AXI_GP0_ACLK] [get_bd_pins ps7_0_axi_periph/S00_ACLK] [get_bd_pins rst_ps7_0_100M/slowest_sync_clk]
   connect_bd_net -net ps7_0_FCLK_CLK1 [get_bd_pins ps7_0/FCLK_CLK1] [get_bd_pins ps7_0/S_AXI_HP0_ACLK]
-  connect_bd_net -net ps7_0_FCLK_CLK3 [get_bd_pins ps7_0/FCLK_CLK3] [get_bd_pins ps7_0/M_AXI_GP1_ACLK] [get_bd_pins ps7_0/S_AXI_HP2_ACLK] [get_bd_pins ps7_0_axi_periph/S01_ACLK] [get_bd_pins rst_ps7_0_100M_1/slowest_sync_clk]
+  connect_bd_net -net ps7_0_FCLK_CLK3 [get_bd_pins audio_direct_0/s_axi_aclk] [get_bd_pins ps7_0/FCLK_CLK3] [get_bd_pins ps7_0/M_AXI_GP1_ACLK] [get_bd_pins ps7_0/S_AXI_HP2_ACLK] [get_bd_pins ps7_0_axi_periph/ACLK] [get_bd_pins ps7_0_axi_periph/M00_ACLK] [get_bd_pins ps7_0_axi_periph/S01_ACLK] [get_bd_pins rst_ps7_0_100M_1/slowest_sync_clk]
   connect_bd_net -net ps7_0_FCLK_RESET0_N [get_bd_pins ps7_0/FCLK_RESET0_N] [get_bd_pins rst_ps7_0_100M/ext_reset_in] [get_bd_pins rst_ps7_0_100M_1/ext_reset_in]
   connect_bd_net -net ps7_0_GPIO_O [get_bd_pins audio_path_sel/Din] [get_bd_pins ps7_0/GPIO_O]
-  connect_bd_net -net rst_ps7_0_100M_1_peripheral_aresetn [get_bd_pins ps7_0_axi_periph/S01_ARESETN] [get_bd_pins rst_ps7_0_100M_1/peripheral_aresetn]
-  connect_bd_net -net rst_ps7_0_100M_peripheral_aresetn [get_bd_pins audio_direct_0/s_axi_aresetn] [get_bd_pins ps7_0_axi_periph/ARESETN] [get_bd_pins ps7_0_axi_periph/M00_ARESETN] [get_bd_pins ps7_0_axi_periph/S00_ARESETN] [get_bd_pins rst_ps7_0_100M/peripheral_aresetn]
+  connect_bd_net -net rst_ps7_0_100M_1_peripheral_aresetn [get_bd_pins audio_direct_0/s_axi_aresetn] [get_bd_pins ps7_0_axi_periph/ARESETN] [get_bd_pins ps7_0_axi_periph/M00_ARESETN] [get_bd_pins ps7_0_axi_periph/S01_ARESETN] [get_bd_pins rst_ps7_0_100M_1/peripheral_aresetn]
+  connect_bd_net -net rst_ps7_0_100M_peripheral_aresetn [get_bd_pins ps7_0_axi_periph/S00_ARESETN] [get_bd_pins rst_ps7_0_100M/peripheral_aresetn]
 
   # Create address segments
-  assign_bd_address -offset 0x40000000 -range 0x00010000 -target_address_space [get_bd_addr_spaces ps7_0/Data] [get_bd_addr_segs audio_direct_0/s_axi/reg0] -force
+  assign_bd_address -offset 0x83C00000 -range 0x00010000 -target_address_space [get_bd_addr_spaces ps7_0/Data] [get_bd_addr_segs audio_direct_0/s_axi/reg0] -force
 
 
   # Restore current instance
