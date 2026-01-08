@@ -51,7 +51,7 @@ reg RxEn, TxEn;
 reg Rnw;
 wire [31:0] RxFifoDataIn; // THIS IS DA INPUT WIRE
 wire RxFifoWrEn;
-wire [31:0] TxFifoDataOut;
+wire [15:0] TxFifoDataOut;
 wire TxFifoRdEn;
 wire RxFifoRdEn;
 reg RxFifoRdEn_dly;
@@ -61,25 +61,9 @@ wire TxFifoEmpty;
 
 assign RxFifoDataIn = PDM_M_DATA_I;
 
-// Deserializer instantiation
-//pdm_des #(
-//    .C_NR_OF_BITS(16),
-//    .C_SYS_CLK_FREQ_MHZ(100),
-//    .C_PDM_FREQ_MHZ(3)
-//) Inst_Deserializer (
-//    .clk_i(CLK_I),
-//    .rst_i(RST_I),
-//    .en_i(RxEn),
-//    .done_o(RxFifoWrEn),
-//    .data_o(RxFifoDataIn),
-//    .pdm_m_clk_o(PDM_M_CLK_O),
-//    .pdm_m_data_i(PDM_M_DATA_I),
-//    .pdm_lrsel_o(PDM_LRSEL_O)
-//);
-
 // Serializer instantiation
 pdm_ser #(
-    .C_NR_OF_BITS(32),
+    .C_NR_OF_BITS(16),
     .C_SYS_CLK_FREQ_MHZ(100),
     .C_PDM_FREQ_MHZ(3)
 ) Inst_Serializer (
@@ -94,7 +78,7 @@ pdm_ser #(
 );
 
 // FIFO instantiation for Tx
-fifo_generator_0 Inst_PdmTxFifo (
+fifo_generator_1 Inst_PdmTxFifo (
     .clk(CLK_I),
     .srst(TX_FIFO_RST_I),
     .din(TX_FIFO_D_I),
