@@ -32,18 +32,52 @@ converted to text. We can use the `speech_recognition` library for this. This
 example uses Google's API, but the library supports many, use whichever you
 find works best.
 
+We will first normalize the recorded audio to 16kHz 16-bit PCM:
+
+```python
+import numpy as np
+
+def normalized_pcm(audio):
+    # crudely downsample to 16kHz
+    fs = 16000
+    samples = int(np.round(audio.sample_len * fs / audio.sample_rate))
+    fractional_sample_indices = np.arange(samples) * (audio.sample_rate / fs)
+    sample_indices = np.clip(np.round(fractional_sample_indices).astype(int), 0, audio.sample_len - 1)
+    audio_data = audio.buffer[sample_indices].astype(np.float32)
+
+    # Remove DC offset
+    audio_data -= np.mean(audio_data)
+
+    # Compute RMS volume for later
+    volume = np.sqrt(np.var(audio_data))
+
+    # Normalize volume
+    audio_data /= max(1e-7, np.max(np.abs(audio_data)))  # don't divide-by-zero
+    audio_data *= 0.99 * np.iinfo(np.int16).max
+
+    # Convert to int16
+    return volume, audio_data.astype(np.int16)
+
+audio.record(10)
+recording = normalized_pcm(audio)
+```
+
+Then we can pass it to the speech recognition API:
+
 ```python
 import speech_recognition as sr
 recognizer = sr.Recognizer()
-audio.record(10)
-text = recognizer.recognize_google(sr.AudioData(audio.buffer, audio.sample_rate, 2))
+text = recognizer.recognize_google(sr.AudioData(audio, 16000, 2))
 
 print(f"You said: {response}")
 ```
 
 ## 3.4 Getting a response from an LLM
 
-To get a response from the LLM, we can use the OpenAI API:
+To get a response from the LLM, we can use the OpenAI API. You will need to
+get an API key from [platform.openai.com](https://platform.openai.com/) first
+([go to this page](https://platform.openai.com/settings/organization/api-keys)
+after signing in, then click "Create new secret key")
 
 ```python
 from openai import OpenAI
@@ -98,32 +132,12 @@ We're almost finished with the software side of the chatbot, but we want the
 chatbot to be interactive, meaning that it understands when you are speaking to
 it. We will use `openwakeword` to do wakeword detection.
 
-`openwakeword` requires 16kHz 16-bit PCM data, so we will do some simple
-processing of the data we get from the audio overlay:
+`openwakeword` requires 16kHz 16-bit PCM data, so we normalize the audio the
+same as before:
 
 ```python
-import numpy as np
-
-def normalized_pcm(audio):
-    # crudely downsample to 16kHz
-    fs = 16000
-    samples = int(np.round(audio.sample_len * fs / audio.sample_rate))
-    fractional_sample_indices = np.arange(samples) * (audio.sample_rate / fs)
-    sample_indices = np.clip(np.round(fractional_sample_indices).astype(int), 0, audio.sample_len - 1)
-    audio_data = audio.buffer[sample_indices].astype(np.float32)
-
-    # Remove DC offset
-    audio_data -= np.mean(audio_data)
-
-    # Compute RMS volume for later
-    volume = np.sqrt(np.var(audio_data))
-
-    # Normalize volume
-    audio_data /= max(1e-7, np.max(np.abs(audio_data)))  # don't divide-by-zero
-    audio_data *= 0.99 * np.iinfo(np.int16).max
-
-    # Convert to int16
-    return volume, audio_data.astype(np.int16)
+audio.record(10)
+recording = normalized_pcm(audio)
 ```
 
 We can then process the data using openwakeword (in chunks), looking for the
@@ -147,9 +161,6 @@ oww_model = openwakeword.model.Model(
 
 audio_chunk_size = 1  # size of chunks used as input to openwakeword (multiples of 80ms)
 detection_thresh = 0.8  # 0-1
-
-audio.record(10)
-recording = normalized_pcm(audio)
 
 
 def oww_predict(chunk):
