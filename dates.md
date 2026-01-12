@@ -15,4 +15,6 @@
 
 Labs will happen in groups, and they will happen in the EEE level 1 lab. The first four labs would include GTA/UTA support. After the mid-term oral, the rest of labs are reserved time for the group project.
 
-Each team will need to lend 2 PYNQ board systems from the EEE Stores. Please only lend 2 boards per group, and identify that who has borrowed the boards on the team forming proposal page
+Each team will need to lend **only 2 PYNQ board systems** from the EEE Stores. Please only lend 2 boards per group, and identify that who has borrowed the boards on the team forming proposal page.
+
+If your group need additional boards for later team project, you should ask Aaron or Sarim to arrange you one.

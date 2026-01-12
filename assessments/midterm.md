@@ -8,6 +8,13 @@ The assessment will take place during the midterm week. The orals will take plac
 
 Each group will have a 20-minute oral slot, of which 15 minutes are dedicated to questions about all the various things you have seen in the lab, where the last 5 minutes will be used for feedback and discussion. 
 
+You should demonstrate to the marking team that:
+
+* Your system works
+* What is the end-to-end latency of your system (from speak-llm-listen)?
+* What improvements have you made to improve this end-to-end latency performance?
+* What evaluation have you done to evaluate your improvements?
+
 These questions might include: 
 
 * Understanding of an FPGA device. 
