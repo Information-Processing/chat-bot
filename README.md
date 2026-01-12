@@ -70,6 +70,8 @@ In this lab, you will combine the processing powers of PYNQ, Whisper and AWS, to
 
 [Lab 4 - AWS](labs/lab4.md)
 
+In this lab, you will learn how to handle AWS's provided databases, mainly an NoSQL database.
+
 <!-- In this lab, you will learn how to connect the PYNQ board to AWS services, and use AWS's provided databases, such as DynamoDB. You will also learn how to make API calls to AWS services, and store the data in the cloud. -->
 
 
@@ -92,7 +94,7 @@ You will also be awarded additional marks for close-to-metal implementations.
 
 Created by:
 [Kevin Lau*](https://uk.linkedin.com/in/kevinlau01),
-[Sanjit Raman](https://sanjitraman.com/)
+[Sanjit Raman](https://sanjitraman.com/),
 [Cheng Zhang](https://chengzhang-98.github.io/blog/),
 [Eleanor Clifford](https://eleanor.clifford.lol/),
 [Sarim Baig]() and 
