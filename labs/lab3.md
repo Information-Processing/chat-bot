@@ -29,7 +29,8 @@ to install the dependencies.
 
 In order for the LLM to respond to the recorded audio, it first needs to be
 converted to text. We can use the `speech_recognition` library for this. This
-example uses Google's API, but the library supports many, use whichever you
+example uses Google's API, which works out of the box, but [the library
+supports many](https://github.com/Uberi/speech_recognition), use whichever you
 find works best.
 
 We will first normalize the recorded audio to 16kHz 16-bit PCM:
