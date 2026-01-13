@@ -18,3 +18,5 @@ Labs will happen in groups, and they will happen in the EEE level 1 lab. The fir
 Each team will need to lend **only 2 PYNQ board systems** from the EEE Stores. Please only lend 2 boards per group, and identify that who has borrowed the boards on the team forming proposal page.
 
 If your group need additional boards for later team project, you should ask Aaron or Sarim to arrange you one.
+
+For various parts of the lab and later team project, likely you would have to register on either OpenAI or OpenRouter or other cloud services. Only **ONE team member should register and keep all the related receipts**. We will support you to reimburse the cost, if you are spending **more than 50 pounds** in total per group, you should ask Aaron first because otherwise you may not get reimbused.  
