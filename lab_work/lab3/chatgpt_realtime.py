@@ -5,6 +5,15 @@ from dotenv import load_dotenv
 from enum import Enum
 
 
+class Logger:
+    def __init__(self):
+        self.log_en = True
+
+    def LOG(self, msg):
+        if self.log_en:
+            print(msg)
+
+
 class EType(Enum):
     CLIENT_CONNECT = "session.created"
     UPDATE_SESSION = "session.update"
@@ -17,6 +26,10 @@ class EType(Enum):
 
 class GptWebsocket:
     def __init__(self):
+        # logger for debugging
+        logger = Logger()
+        self.LOG = logger.LOG
+
         # environment load
         env_path = os.path.join(dirname(__file__), ".env")
         load_dotenv(env_path)
@@ -27,7 +40,7 @@ class GptWebsocket:
         URL = f"wss://api.openai.com/v1/realtime?model={MODEL}"
         HEADERS = [f"Authorization: Bearer {OPENAI_API_KEY}"]
 
-        self.websocket = websocket.WebSocketApp(
+        self.ws = websocket.WebSocketApp(
             URL,
             header=HEADERS,
             on_open=self.on_open,
@@ -37,10 +50,11 @@ class GptWebsocket:
         )
 
     def on_open(self, ws):
-        pass
+        print("Connected to ChatGPT Websocket")
 
-    def ws_send(self, message):
-        pass
+    def ws_send(self, ws, message):
+        json_msg = json.dumps(messaga)
+        ws.send(json_msg)
 
     def on_message(self, ws, message):
         event = json.dumps(message)
@@ -49,7 +63,17 @@ class GptWebsocket:
         match event_type:
             case EType.CLIENT_CONNECT:
                 # send update message
-                pass
+                self.ws_send(ws,
+                             {
+                                 "type": EType.UPDATE_SESSION,
+                                 "session": {
+                                     "type": "realtime",
+                                     "output_modalities": ["text"],
+                                     "instructions": "Be consise."
+                                 }
+                             }
+                             )
+                self.LOG("\nSession updated: type, output and instructions set\n")
             case EType.CLIENT_MSG:
                 # send message then send request response
                 pass
@@ -58,14 +82,18 @@ class GptWebsocket:
                 pass
             case EType.ERROR:
                 # deal with error
+                print("Error")
                 pass
 
+        self.LOG(f"event on websocket: {event}")
+
     def on_error(self, ws):
-        pass
+        print("Error")
 
     def on_close(self, ws):
-        pass
+        print("Websocket closed")
 
 
 if __name__ == "__main__":
     gpt_websocket = GptWebsocket()
+    gpt_websocket.ws.run_forever()
