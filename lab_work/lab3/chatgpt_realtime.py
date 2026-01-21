@@ -8,14 +8,14 @@ import json
 
 class Logger:
     def __init__(self):
-        self.log_en = True
+        self.log_en = False
 
     def LOG(self, msg):
         if self.log_en:
             print(f"[DEBUG] {msg}")
 
 
-class EType(Enum):
+class EType(str, Enum):
     CLIENT_CONNECT = "session.created"
     UPDATE_SESSION = "session.update"
     CLIENT_MSG = "conversation.item.create"
@@ -54,7 +54,7 @@ class GptWebsocket:
         print("Connected to ChatGPT Websocket")
 
     def ws_send(self, ws, message):
-        json_msg = json.dumps(messaga)
+        json_msg = json.dumps(message)
         ws.send(json_msg)
 
     def on_message(self, ws, message):
@@ -74,6 +74,7 @@ class GptWebsocket:
                                  }
                              }
                              )
+
                 self.LOG("\nSession updated: type, output and instructions set\n")
             case EType.CLIENT_MSG:
                 # send message then send request response
@@ -87,6 +88,7 @@ class GptWebsocket:
                 pass
 
         self.LOG(f"event on websocket: {event}")
+        self.LOG(f"event type: {event_type}")
 
     def on_error(self, ws, error):
         print(f"Error: {error}")
