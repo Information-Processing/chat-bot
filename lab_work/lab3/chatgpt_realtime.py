@@ -16,12 +16,13 @@ class EType(Enum):
 
 
 class GptWebsocket:
-
     def __init__(self):
-        # global environment load
+        # environment load
         env_path = os.path.join(dirname(__file__), ".env")
         load_dotenv(env_path)
         OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 
+        # websocket setup
         MODEL = "gpt-realtime"
         URL = f"wss://api.openai.com/v1/realtime?model={MODEL}"
+        HEADERS = [f"Authorization: Bearer {API_KEY}"]
