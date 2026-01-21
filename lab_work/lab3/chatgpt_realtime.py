@@ -4,6 +4,7 @@ from os.path import join, dirname
 from dotenv import load_dotenv
 from enum import Enum
 import json
+import threading
 
 
 class Logger:
@@ -79,13 +80,17 @@ class GptWebsocket:
             case EType.CLIENT_MSG:
                 # send message then send request response
                 pass
+
             case EType.SERVER_TOK_STREAM:
-                # stream to print
-                pass
+                # stream "delta" (message from gpt) to std::cout
+                print(event.get("delta", ""), end="", flush=True)
+
+            case EType.SERVER_RESPONSE_DONE:
+                print("\n ~Mr Gippity \n\n")
+
             case EType.ERROR:
                 # deal with error
                 print("Error")
-                pass
 
         self.LOG(f"event on websocket: {event}")
         self.LOG(f"event type: {event_type}")
@@ -98,7 +103,24 @@ class GptWebsocket:
         print(f"Code: {code}")
         print(f"Reason: {reason}")
 
+    def send_message(self):
+        while (1):
+            message = input()
+            self.ws_send(self.ws,
+                         {
+                             "type": EType.CLIENT_MSG,
+                             "item": {
+                                 "type": "message",
+                                 "role": "user",
+                                 "content": [{"type": "input_text", "text": message}]
+                             }
+                         }
+                         )
+            self.ws_send(self.ws, {"type":  EType.CLIENT_REQ_RESPONSE})
+
 
 if __name__ == "__main__":
     gpt_websocket = GptWebsocket()
-    gpt_websocket.ws.run_forever()
+    t = threading.Thread(target=gpt_websocket.ws.run_forever, daemon=True)
+    t.start()
+    gpt_websocket.send_message()
