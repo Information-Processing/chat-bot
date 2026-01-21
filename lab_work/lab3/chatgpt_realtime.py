@@ -3,6 +3,7 @@ import os
 from os.path import join, dirname
 from dotenv import load_dotenv
 from enum import Enum
+import json
 
 
 class Logger:
@@ -11,7 +12,7 @@ class Logger:
 
     def LOG(self, msg):
         if self.log_en:
-            print(msg)
+            print(f"[DEBUG] {msg}")
 
 
 class EType(Enum):
@@ -57,7 +58,7 @@ class GptWebsocket:
         ws.send(json_msg)
 
     def on_message(self, ws, message):
-        event = json.dumps(message)
+        event = json.loads(message)
         event_type = event.get("type")
 
         match event_type:
@@ -87,11 +88,13 @@ class GptWebsocket:
 
         self.LOG(f"event on websocket: {event}")
 
-    def on_error(self, ws):
-        print("Error")
+    def on_error(self, ws, error):
+        print(f"Error: {error}")
 
-    def on_close(self, ws):
-        print("Websocket closed")
+    def on_close(self, ws, code, reason):
+        print("Websocket closed:")
+        print(f"Code: {code}")
+        print(f"Reason: {reason}")
 
 
 if __name__ == "__main__":
