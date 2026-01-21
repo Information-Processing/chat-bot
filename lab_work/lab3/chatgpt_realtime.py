@@ -9,9 +9,12 @@ import threading
 import sounddevice as sd
 
 
+EN_LOGS = True
+
+
 class Logger:
     def __init__(self):
-        self.log_en = False
+        self.log_en = EN_LOGS
 
     def LOG(self, msg):
         if self.log_en:
@@ -24,11 +27,12 @@ class EType(str, Enum):
 
     CLIENT_MSG = "conversation.item.create"
     CLIENT_REQ_RESPONSE = "response.create"
+    CLIENT_SPEAK = "input_audio_buffer.append"
 
     SERVER_TOK_STREAM = "response.output_text.delta"
-    SERVER_AUDIO_STREAM = "input_audio_buffer.append"
+    SERVER_AUDIO_STREAM = "response.output_audio.delta"
+    SERVER_AUDIO_DONE = "response.output_audio.done"
     SERVER_RESPONSE_DONE = "response.done"
-
     ERROR = "error"
 
 
@@ -42,6 +46,14 @@ class GptWebsocket:
         env_path = os.path.join(dirname(__file__), ".env")
         load_dotenv(env_path)
         OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+
+        # output stream
+        self.speaker = sd.RawOutputStream(
+            samplerate=24000,
+            channels=1,
+            dtype="int16"
+        )
+        self.speaker.start()
 
         # websocket setup
         MODEL = "gpt-realtime"
@@ -76,26 +88,28 @@ class GptWebsocket:
                                  "type": EType.UPDATE_SESSION,
                                  "session": {
                                      "type": "realtime",
-                                     "output_modalities": ["text", "audio"],
+                                     "output_modalities": ["audio"],
                                      "audio": {
                                          "input": {
                                              "format": {"type": "audio/pcm", "rate": 24000},
                                              "turn_detection": {"type": "semantic_vad"}
-                                         }
+                                         },
                                          "output": {
-                                             "format": {"type": "audio/pcm"},
+                                             "format": {"type": "audio/pcm", "rate": 24000},
                                              "voice": "marin"
                                          }
-                                     }
+                                     },
                                      "instructions": "Be consise."
                                  }
                              }
                              )
 
                 self.LOG("\nSession updated: type, output and instructions set\n")
-            case EType.CLIENT_MSG:
-                # send message then send request response
-                pass
+
+            case EType.SERVER_AUDIO_STREAM:
+                # feed into output stream
+                pcm_bytes = base64.b64decode(event.get("delta"))
+                self.speaker.write(pcm_bytes)
 
             case EType.SERVER_TOK_STREAM:
                 # stream "delta" (message from gpt) to std::cout
@@ -142,7 +156,7 @@ class GptWebsocket:
         b64 = base64.b64encode(chunk_bytes).decode("ascii")
 
         self.ws_send(self.ws, {
-            "type": EType.SERVER_AUDIO_STREAM,
+            "type": EType.CLIENT_SPEAK,
             "audio": b64
         })
 
@@ -156,12 +170,13 @@ class GptWebsocket:
         )
         stream.start()
         input("Recording... press any button to stop.")
-        while (1):
-            mic.
+
+        stream.stop()
+        stream.close()
 
 
 if __name__ == "__main__":
     gpt_websocket = GptWebsocket()
     t = threading.Thread(target=gpt_websocket.ws.run_forever, daemon=True)
     t.start()
-    gpt_websocket.send_message()
+    gpt_websocket.send_audio()
