@@ -25,7 +25,7 @@ class GptWebsocket:
         # websocket setup
         MODEL = "gpt-realtime"
         URL = f"wss://api.openai.com/v1/realtime?model={MODEL}"
-        HEADERS = [f"Authorization: Bearer {API_KEY}"]
+        HEADERS = [f"Authorization: Bearer {OPENAI_API_KEY}"]
 
         self.websocket = websocket.WebSocketApp(
             URL,
@@ -35,6 +35,9 @@ class GptWebsocket:
             on_error=self.on_error,
             on_close=self.on_close
         )
+
+    def on_open(self, ws):
+        pass
 
     def ws_send(self, message):
         pass
@@ -56,6 +59,12 @@ class GptWebsocket:
             case EType.ERROR:
                 # deal with error
                 pass
+
+    def on_error(self, ws):
+        pass
+
+    def on_close(self, ws):
+        pass
 
 
 if __name__ == "__main__":
