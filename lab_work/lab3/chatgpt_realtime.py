@@ -9,7 +9,7 @@ class EType(Enum):
     CLIENT_CONNECT = "session.created"
     UPDATE_SESSION = "session.update"
     CLIENT_MSG = "conversation.item.create"
-    CLIENT_SEND = ""
+    CLIENT_REQ_RESPONSE = "response.create"
     SERVER_TOK_STREAM = "response.output_text.delta"
     SERVER_RESPONSE_DONE = "response.done"
     ERROR = "error"
@@ -26,3 +26,37 @@ class GptWebsocket:
         MODEL = "gpt-realtime"
         URL = f"wss://api.openai.com/v1/realtime?model={MODEL}"
         HEADERS = [f"Authorization: Bearer {API_KEY}"]
+
+        self.websocket = websocket.WebSocketApp(
+            URL,
+            header=HEADERS,
+            on_open=self.on_open,
+            on_message=self.on_message,
+            on_error=self.on_error,
+            on_close=self.on_close
+        )
+
+    def ws_send(self, message):
+        pass
+
+    def on_message(self, ws, message):
+        event = json.dumps(message)
+        event_type = event.get("type")
+
+        match event_type:
+            case EType.CLIENT_CONNECT:
+                # send update message
+                pass
+            case EType.CLIENT_MSG:
+                # send message then send request response
+                pass
+            case EType.SERVER_TOK_STREAM:
+                # stream to print
+                pass
+            case EType.ERROR:
+                # deal with error
+                pass
+
+
+if __name__ == "__main__":
+    gpt_websocket = GptWebsocket()
