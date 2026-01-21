@@ -4,7 +4,9 @@ from os.path import join, dirname
 from dotenv import load_dotenv
 from enum import Enum
 import json
+import base64
 import threading
+import sounddevice as sd
 
 
 class Logger:
@@ -19,10 +21,14 @@ class Logger:
 class EType(str, Enum):
     CLIENT_CONNECT = "session.created"
     UPDATE_SESSION = "session.update"
+
     CLIENT_MSG = "conversation.item.create"
     CLIENT_REQ_RESPONSE = "response.create"
+
     SERVER_TOK_STREAM = "response.output_text.delta"
+    SERVER_AUDIO_STREAM = "input_audio_buffer.append"
     SERVER_RESPONSE_DONE = "response.done"
+
     ERROR = "error"
 
 
@@ -70,7 +76,17 @@ class GptWebsocket:
                                  "type": EType.UPDATE_SESSION,
                                  "session": {
                                      "type": "realtime",
-                                     "output_modalities": ["text"],
+                                     "output_modalities": ["text", "audio"],
+                                     "audio": {
+                                         "input": {
+                                             "format": {"type": "audio/pcm", "rate": 24000},
+                                             "turn_detection": {"type": "semantic_vad"}
+                                         }
+                                         "output": {
+                                             "format": {"type": "audio/pcm"},
+                                             "voice": "marin"
+                                         }
+                                     }
                                      "instructions": "Be consise."
                                  }
                              }
@@ -117,6 +133,31 @@ class GptWebsocket:
                          }
                          )
             self.ws_send(self.ws, {"type":  EType.CLIENT_REQ_RESPONSE})
+
+    def mic_callback(self, indata, frames, time, status):
+        if status:
+            print(status)
+
+        chunk_bytes = indata.tobytes()
+        b64 = base64.b64encode(chunk_bytes).decode("ascii")
+
+        self.ws_send(self.ws, {
+            "type": EType.SERVER_AUDIO_STREAM,
+            "audio": b64
+        })
+
+    def send_audio(self):
+        stream = sd.InputStream(
+            samplerate=24000,
+            channels=1,
+            dtype="int16",
+            blocksize=int(24000*20/1000),
+            callback=self.mic_callback
+        )
+        stream.start()
+        input("Recording... press any button to stop.")
+        while (1):
+            mic.
 
 
 if __name__ == "__main__":
