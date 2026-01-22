@@ -78,6 +78,9 @@ PYNQ uses the static IP address `192.168.2.99` by default. Configure your comput
 4. Double-click `Internet Protocol Version 4 (TCP/IPv4)`
 5. Assign a static IP address: `192.168.2.X` (where X is any number from 1-254, except 99)
 
+IP address of Ethernet port: 192.168.2.1
+Subnet Mask: 255.255.255.0
+
 **Linux:**
 Refer to the PYNQ documentation: <https://pynq.readthedocs.io/en/latest/appendix/assign_a_static_ip.html#assign-a-static-ip-address>
 
@@ -123,6 +126,7 @@ You are now ready to create your first FPGA design. This section will guide you 
 
 > **Board Part Troubleshooting:** If you cannot find the PYNQ-Z1 board, refer to [debug.md](../../debug.md/#board-parts-not-found). Alternatively, use the `Parts` tab to directly select the part number `xc7z020clg400-1`.
 
+
 ### Step 2: Create the Block Design
 
 In the left sidebar under **IP INTEGRATOR**, click **Create Block Design**. You can use the default name `design_1`.
@@ -132,9 +136,13 @@ In the left sidebar under **IP INTEGRATOR**, click **Create Block Design**. You 
 
 Add the **ZYNQ7 Processing System** IP to your block design. This component provides the interface to the dual ARM Cortex-A9 cores. Double-click the ZYNQ7 PS block to open its configuration. Note the section for HP (High Performance) slave ports—you'll need one port (HP0) for this design.
 
+**ZYNQ7 Processing System has CPU + Memory (RAM) + Peripherals (Ethernet, USB, SD Card, etc.)**
+
 ![Add Zynq Processing System IP](../../images/lab1-add-zynq-ip.png)
 
 Add the **AXI Direct Memory Access (DMA)** IP to your block design.
+
+The DMA is a hardware component in FPGAs that is able to move large blocks of data between the **main memory (DDR)** and the **FPGA fabric (Programmable Logic)** without involving the CPU
 
 ![Add AXI Direct Memory Access (DMA)](../../images/lab1-add-dma-ip.png)
 
@@ -147,6 +155,8 @@ Double-click the `AXI DMA` block to configure it:
 Add the **FIR Compiler** IP to design your filter.
 
 ![Add FIR Compiler Block](../../images/lab1-add-fir-compiler.png)
+
+**An FIR compiler is a prebuilt hardware block that allows you to create digital filters on an FPGA without writing the math from scratch on Verilog**
 
 Double-click the FIR Compiler block to configure it. In the **Filter Options** tab, paste the following coefficients:
 
@@ -219,7 +229,7 @@ Now that the design is completed, click `F6` to validate your design. If validat
 
 ![](../../images/lab1-export-hdl-wrapper.png)
 
-> Synthesis translates your HDL code into a gate-level netlist of logical components (LUTs, flip-flops, DSPs, etc.) that can be implemented on the FPGA fabric. Implementation then places those components onto physical FPGA resources and routes the connections between them, while bitstream generation creates the binary configuration file that programs the FPGA.
+> Synthesis translates your HDL code into a gate-level netlist of logical components (LUTs, flip-flops, DSPs, etc.) that can be implemented on the FPGA fabric. Implementation then places those components onto physical FPGA resources and routes the connections between them, while **bitstream generation creates the binary configuration file that programs the FPGA**.
 
 Now to run your design on the PYNQ board, we need three files: a `tcl` file, a `hwh` files, and a `bit` file.
 
@@ -244,6 +254,8 @@ Now to run your design on the PYNQ board, we need three files: a `tcl` file, a `
 
 7. Open the Jupyter Notebook and execute the cells
 8. Follow the instructions and observe the performance difference between hardware and software implementations of the FIR filter
+
+For results and explanations, see [[Lab 1 Jupyter Notebook 1]].
 
 ## 1.3 Simple Register Control (Merge Array)
 
@@ -270,6 +282,8 @@ Create a block design and add the **ZYNQ7 Processing System**.
 Select **Tools → Create and Package New IP** from the menu bar.
 
 1. Choose **Create a new AXI4 peripheral**
+
+A AXI4 peripheral is a hardware block you can connect to the processing system using AXI4 protocol. The CPU can write to and read from the AXI4 peripheral (it treats it as a memory address). Custom logic can be configured on the AXI4 peripheral so that certain actions can be taken when there is some value written to the registers within the AXI4 peripheral.
 
 ![New AXI4 peripheral](../../images/lab1-new-axi4-peripheral.jpg)
 
@@ -318,6 +332,8 @@ assign S_AXI_RVALID = axi_rvalid;
 // Add this:
 assign fsmStart = slv_reg0[0];
 ```
+
+The above code is a mapping of the very first bit of the first register to the 'Start' pin of the hardware. Therefore, when '1' is written to slv_reg0, fsmStart is set to high instantly.
 
 **Replace Register Write Logic**
 
@@ -413,6 +429,12 @@ begin
 end
 ```
 
+Analysis of the above code:
+- When sortDone is high, set the value inside slv_reg0 to 0 automatically. This is needed as slv_reg0 is a start bit.
+- slv_reg1 is set to 1 when sortDone is high. the CPU can read this register to see if the work has been finished/
+- fifo1_wr_en, fifo2_wr_en is set to high when a new value is pushed to register 3 or 4
+- The output of the merged array is outputted to register 2
+
 **Update Register Read Logic**
 
 Locate the `always @(*)` block for address decoding:
@@ -480,15 +502,15 @@ mergeCore mc(
 
 #### Summary of Register Mapping
 
-| Register Address | Modified Function |
-|-----------------|--------------|
-| 0x00 (slv_reg0) | Start bit + auto-clears when done |
-| 0x04 (slv_reg1) | Status register (set to 1 when done) |
-| 0x08 (slv_reg2) | **READ**: Merged FIFO output |
-| 0x0C (slv_reg3) | **WRITE**: FIFO1 input (generates pulse) |
-| 0x10 (slv_reg4) | **WRITE**: FIFO2 input (generates pulse) |
+| Register Address | Modified Function                        |
+| ---------------- | ---------------------------------------- |
+| 0x00 (slv_reg0)  | Start bit + auto-clears when done        |
+| 0x04 (slv_reg1)  | Status register (set to 1 when done)     |
+| 0x08 (slv_reg2)  | **READ**: Merged FIFO output             |
+| 0x0C (slv_reg3)  | **WRITE**: FIFO1 input (generates pulse) |
+| 0x10 (slv_reg4)  | **WRITE**: FIFO2 input (generates pulse) |
 
-The transformation converts a passive register file into an active hardware controller with proper handshaking!
+The transformation converts a passive register file into an active hardware controller with **proper handshaking** (required to create and maintain a valid connection with the processing system)!
 
 You have now transformed a standard AXI4 peripheral template into a custom hardware controller with proper register control and handshaking logic.
 
@@ -568,6 +590,8 @@ Hints:
 ![](../../images/lab1-package-ip.png)
 
 5. Close the IP project and return to your main `merge_array` project
+
+By connecting a custom AXI peripheral to a FIFO Generator, we have created a reliable 'bridge' to move data from the CPU to the FIFO generator, generating the outputs that we want.
 
 #### 1.7 Complete the Block Design
 
