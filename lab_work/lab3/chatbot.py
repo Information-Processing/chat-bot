@@ -96,9 +96,36 @@ class GttsCli:
         audio.play()
         """
 
+class OpenWakeWord:
+    def __init__(self):
+
+        oww_model_name = "hey_jarvis_v0.1"
+        self.openwakeword.utils.download_models([oww_model_name])
+        self.oww_model = openwakeword.model.Model(
+            wakeword_models=[oww_model_name],
+            inference_framework="tflite",
+        )
+
+        self.audio_chunk_size = 1  # size of chunks used as input to openwakeword (multiples of 80ms)
+        self.detection_thresh = 0.8  # 0-1
+
+    def oww_predict(self, chunk):
+        oww_model.predict(chunk)
+        return list(self.oww_model.prediction_buffer.values())[0][-1]
+
+    def predict_in_recording(self, recording):
+        for chunk in np.split(recording, np.arange(self.audio_chunk_size * 1280, len(recording), self.audio_chunk_size * 1280)):
+            if self.oww_predict(chunk) > self.detection_thresh:
+                print("Wakeword detected!")
+                return True
+
+        return False
+
 if __name__ == "__main__":
     openai_cli = OpenAiCli()
     gtts_cli = GttsCli()
+    open_wake_word = OpenWakeWord()
+
     audio = Audio()
     audio.record(5)
     _, recording = audio.normalized_pcm()
