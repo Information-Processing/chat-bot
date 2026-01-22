@@ -5,6 +5,9 @@ import os
 from os.path import dirname, join
 from dotenv import load_dotenv
 from openai import OpenAI
+from gtts import gTTS
+import tempfile
+
 
 class Audio:
     def __init__(self, sample_rate=44100):
@@ -65,8 +68,37 @@ class OpenAiCli:
         print(f"LLM responded {response_msg}")
         return response_msg
 
+class GttsCli:
+    def say(self, text):
+        tts = gTTS(text)
+
+        # set up temporary files for conversion
+        mp3 = tempfile.NamedTemporaryFile(suffix=".mp3")
+        wav = tempfile.NamedTemporaryFile(suffix=".wav")
+        pdm = tempfile.NamedTemporaryFile(suffix=".pdm")
+
+        tts.write_to_fp(mp3)
+        
+        os.system(f"afplay {mp3.name}") 
+        """
+            UNCOMMENT FOR FPGA:
+
+        # convert MP3 to PCM
+        system(f"ffmpeg -loglevel error -y -i {mp3.name} -c:a pcm_s16le -ac 1 {wav.name}")
+
+        # convert PCM to PDM
+        rate, pcm = wavfile.read(wav.name)
+        pdm_data = pcm_to_pdm(pcm, rate)
+        save_pdm(pdm_data, pdm.name)
+
+        # playback
+        audio.load(pdm.name)
+        audio.play()
+        """
+
 if __name__ == "__main__":
     openai_cli = OpenAiCli()
+    gtts_cli = GttsCli()
     audio = Audio()
     audio.record(5)
     _, recording = audio.normalized_pcm()
@@ -78,5 +110,11 @@ if __name__ == "__main__":
 
     openai_response_msg = openai_cli.make_request(text)
 
-    print(openai_response_msg)
+    print(f"Mr Gippity said: {openai_response_msg}")
+    
+    gtts_cli.say(openai_response_msg)
+
+    print("program terminated..")
+
+    
 
