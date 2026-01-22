@@ -1,6 +1,10 @@
 import numpy as np
 import speech_recognition as sr
 import sounddevice as sd
+import os
+from os.path import dirname, join
+from dotenv import load_dotenv
+from openai import OpenAI
 
 class Audio:
     def __init__(self, sample_rate=44100):
@@ -41,8 +45,28 @@ class Audio:
         # Convert to int16
         return volume, audio_data.astype(np.int16)
 
+class OpenAiCli:
+    def __init__(self):
+        env_path = os.path.join(dirname("__file__"), ".env")
+        load_dotenv(env_path)
+        OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+        self.gpt = OpenAI(api_key=OPENAI_API_KEY)
+
+    def make_request(self, message):
+        response = self.gpt.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": message}],
+            max_tokens=700,
+            temperature=0.7
+        )
+        
+        response_msg = response.choices[0].message.content
+
+        print(f"LLM responded {response_msg}")
+        return response_msg
 
 if __name__ == "__main__":
+    openai_cli = OpenAiCli()
     audio = Audio()
     audio.record(5)
     _, recording = audio.normalized_pcm()
@@ -50,5 +74,9 @@ if __name__ == "__main__":
     recognizer = sr.Recognizer()
     text = recognizer.recognize_google(sr.AudioData(recording, 16000, 2))
 
-
     print(f"You said: {text}")
+
+    openai_response_msg = openai_cli.make_request(text)
+
+    print(openai_response_msg)
+
