@@ -1,0 +1,10 @@
+numpy
+scipy
+numba
+sounddevice
+soundfile
+SpeechRecognition
+openai
+python-dotenv
+gTTS
+openwakeword
