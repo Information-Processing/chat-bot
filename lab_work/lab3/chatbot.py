@@ -79,10 +79,9 @@ class Audio:
             frames=int(seconds * self.sample_rate),
             samplerate=self.sample_rate,
             channels=1,
-            dtype="float32"
+            dtype="float32",
+            blocking=True
         )
-
-        sd.wait()
         self.buffer = data.flatten()
         self.sample_len = len(self.buffer)
     
@@ -192,6 +191,8 @@ class OpenWakeWord:
         return list(self.oww_model.prediction_buffer.values())[0][-1]
 
     def predict_in_recording(self, recording):
+        self.oww_model.reset()
+        
         for chunk in np.split(recording, np.arange(self.audio_chunk_size * 1280, len(recording), self.audio_chunk_size * 1280)):
             if self.oww_predict(chunk) > self.detection_thresh:
                 print("Wakeword detected!")
