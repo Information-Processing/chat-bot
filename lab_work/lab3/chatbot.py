@@ -22,6 +22,7 @@ import logging
 import threading
 import queue
 from enum import Enum
+import time
 
 
 """
@@ -202,11 +203,12 @@ class OpenWakeWord:
         return False
 
 
-class state(str, Enum):
+class State(str, Enum):
+    WAITING = "waiting"
+    LISTENING = "listening"
 
 
-
-class engine:
+class Engine:
     def __init__(self, audio, openai_cli, gtts_cli, open_wake_word):
         self.audio = audio
         self.openai_cli = openai_cli
@@ -216,43 +218,91 @@ class engine:
         self.audio_queue = queue.Queue(maxsize=200)
         self.speaking = False
         self.speaking_lock = threading.Lock()
-        self.state = 
+        self.state = State.WAITING
 
     
     def run_record_thread(self):
         t = threading.Thread(target=self.record_thread, daemon=True)
         t.start()
+        print("Recording thread started...")
 
     def record_thread(self):
+        print("Record thread running...")
         while 1:
-            # if user is not speaking dont record and add nothing valuable to queue
-            with self.speaking_lock:
-                if self.speaking:
-                    time.sleep(0.02)
-                    contnue
-        
-            self.audio.record(0.08)
-            volume, recording = self.audio.normalized_pcm()
-
-            # drop frames if ahead:
+            # if bot is speaking pause recording
             try:
-                self.audio_queue.put((volume, recording))
-            except queue.Full:
-                pass
+                with self.speaking_lock:
+                    if self.speaking:
+                        time.sleep(0.02)
+                        continue 
+            
+                self.audio.record(0.08)
+                volume, recording = self.audio.normalized_pcm()
+                print(f"Recorded chunk, volume={volume:.4f}")
+
+                # drop frames if ahead:
+                try:
+                    self.audio_queue.put_nowait((volume, recording))
+                except queue.Full:
+                    pass
+            except Exception as e:
+                import traceback
+                print("[ERROR]")
+                traceback.print_exc()
+                time.sleep(1)
 
     def play_on_wake(self):
+        command_frames = []
+        quiet_frames = 0
+        NOISE_THRESH = 0.01
+        LISTEN_QUIET_SECONDS = 1.2
+        CHUNK_SECONDS = 0.08
 
+        recognizer = sr.Recognizer()
+        print("Listening for wakeword...")
         while 1:
-            volume, audio_frame = audio_queue.get()
-            if open_wake_word.predict_in_recording(audio_frame):
-                recognizer = sr.Recognizer()
-                text = recognizer.recognize_google(sr.AudioData(recording, 16000, 2))
+            volume, frame = self.audio_queue.get()
+            if volume < NOISE_THRESH:
+                quiet_frames += 1
+            else:
+                quiet_frames = 0
+
+            if self.state == State.WAITING:
+                if self.open_wake_word.oww_predict(frame) > self.open_wake_word.detection_thresh:
+                    print("Wakeword detected")
+                    self.state = State.LISTENING
+                    command_frames = []
+                    quiet_frames = 0
+
+            elif self.state ==  State.LISTENING:
+                command_frames.append(frame)
+                if quiet_frames > int(LISTEN_QUIET_SECONDS / CHUNK_SECONDS):
+                    command = np.concatenate(command_frames)
+
+                    try:
+                        text = recognizer.recognize_google(sr.AudioData(command.tobytes(), 16000, 2))
+                    except sr.UnknownValueError:
+                        print("cant understand you")
+                        self.state = State.WAITING
+                        continue
 
                 print(f"You said: {text}")
 
-                openai_response_msg = openai_cli.make_request(text)
+                response = self.openai_cli.make_request(text)
+                with self.speaking_lock:
+                    self.speaking = True
+                    self.gtts_cli.say(response)
+                with self.speaking_lock:
+                    self.speaking = False
 
-                gtts_cli.say(openai_response_msg)
+                self.state = State.WAITING
+
+
+                while not self.audio_queue.empty():
+                    try: 
+                        self.audio_queue.get_nowait()
+                    except queue.Empty: 
+                        break
 
 
 
@@ -262,7 +312,11 @@ if __name__ == "__main__":
     openai_cli = OpenAiCli()
     gtts_cli = GttsCli(audio)
     open_wake_word = OpenWakeWord()
+        
+    engine = Engine(audio, openai_cli, gtts_cli, open_wake_word)
 
+    engine.run_record_thread()
+    engine.play_on_wake()
 
 
     print("Terminating program...")
