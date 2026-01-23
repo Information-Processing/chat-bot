@@ -1,12 +1,63 @@
 import numpy as np
 import speech_recognition as sr
 import sounddevice as sd
-import os
-from os.path import dirname, join
-from dotenv import load_dotenv
+import soundfile as sf
 from openai import OpenAI
+import os
+from os.path import join, dirname
+from os import system
+from dotenv import load_dotenv
 from gtts import gTTS
 import tempfile
+# from gpt_websocket import GptWebsocket
+import sys
+from types import ModuleType
+sys.modules["onnxruntime"] = ModuleType("onnxruntime")
+import openwakeword
+from scipy import signal
+from scipy.io import wavfile
+from numba import jit
+import wave
+import logging
+
+
+"""
+Note sound device has been imported ad record function has been created as these are not native functions in python but are on the FPGA itself
+this sound device is just a way of simulating the fpgas audio
+"""
+
+@jit(nopython=True)
+def delta_sigma_numba(upsampled):
+    """Fast delta-sigma modulation with Numba."""
+    pdm = np.zeros(len(upsampled), dtype=np.uint8)
+    error = 0.0
+    for i in range(len(upsampled)):
+        if upsampled[i] > error:
+            pdm[i] = 1
+            error = error + 1.0 - upsampled[i]
+        else:
+            error = error - upsampled[i]
+    return pdm
+
+class OpenAiCli:
+    def __init__(self):
+        env_path = os.path.join(dirname("__file__"), ".env")
+        load_dotenv(env_path)
+        OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+        self.gpt = OpenAI(api_key=OPENAI_API_KEY)
+
+    def make_request(self, message):
+        response = self.gpt.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": message}],
+            max_tokens=700,
+            temperature=0.7
+        )
+        
+        response_msg = response.choices[0].message.content
+
+        print(f"LLM responded {response_msg}")
+        return response_msg
 
 
 class Audio:
@@ -14,6 +65,14 @@ class Audio:
         self.sample_rate = sample_rate
         self.buffer = None
         self.sample_len = 0
+
+    def load(self, path):
+            self.path = path
+
+    def play(self):
+        data, fs = sf.read(self.path)
+        sd.play(data, fs)
+        sd.wait()
 
     def record(self, seconds):
         data = sd.rec(
@@ -26,6 +85,43 @@ class Audio:
         sd.wait()
         self.buffer = data.flatten()
         self.sample_len = len(self.buffer)
+    
+    def save_pdm(self, pdm_bits, filepath, pdm_rate=3072000):
+        """Save PDM as WAV file (PYNQ .pdm format)."""
+        pad = (16 - len(pdm_bits) % 16) % 16
+        if pad:
+            pdm_bits = np.concatenate([pdm_bits, np.zeros(pad, dtype=np.uint8)])
+    
+        reshaped = pdm_bits.reshape(-1, 16)
+        packed = np.zeros(len(reshaped), dtype=np.uint16)
+        for i in range(16):
+            packed |= reshaped[:, i].astype(np.uint16) << i
+    
+        with wave.open(filepath, 'wb') as wav:
+            wav.setnchannels(1)
+            wav.setsampwidth(2)
+            wav.setframerate(pdm_rate // 16)
+            wav.writeframes(packed.tobytes())
+    
+        logging.info(f"Saved: {filepath}")
+
+
+
+
+    def pcm_to_pdm(self, pcm_samples, pcm_rate, pdm_rate=3072000):
+        """Convert PCM audio to PDM format for PYNQ playback."""
+        pcm = pcm_samples.astype(np.float64)
+        if pcm_samples.dtype == np.int16:
+            pcm = pcm / 32768.0
+        pcm = (pcm - pcm.min()) / (pcm.max() - pcm.min() + 1e-10)
+
+        ratio = pdm_rate // pcm_rate
+        upsampled = signal.resample_poly(pcm, ratio, 1)
+
+        pdm = delta_sigma_numba(upsampled)
+
+        return pdm
+
 
     def normalized_pcm(self):
         # crudely downsample to 16kHz
@@ -48,27 +144,11 @@ class Audio:
         # Convert to int16
         return volume, audio_data.astype(np.int16)
 
-class OpenAiCli:
-    def __init__(self):
-        env_path = os.path.join(dirname("__file__"), ".env")
-        load_dotenv(env_path)
-        OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-        self.gpt = OpenAI(api_key=OPENAI_API_KEY)
-
-    def make_request(self, message):
-        response = self.gpt.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": message}],
-            max_tokens=700,
-            temperature=0.7
-        )
-        
-        response_msg = response.choices[0].message.content
-
-        print(f"LLM responded {response_msg}")
-        return response_msg
-
 class GttsCli:
+    
+    def __init__(self, audio):
+        self.audio = audio
+
     def say(self, text):
         tts = gTTS(text)
 
@@ -79,22 +159,17 @@ class GttsCli:
 
         tts.write_to_fp(mp3)
         
-        os.system(f"afplay {mp3.name}") 
-        """
-            UNCOMMENT FOR FPGA:
-
+        # os.system(f"afplay {mp3.name}") 
         # convert MP3 to PCM
         system(f"ffmpeg -loglevel error -y -i {mp3.name} -c:a pcm_s16le -ac 1 {wav.name}")
-
         # convert PCM to PDM
         rate, pcm = wavfile.read(wav.name)
-        pdm_data = pcm_to_pdm(pcm, rate)
-        save_pdm(pdm_data, pdm.name)
+        pdm_data = self.audio.pcm_to_pdm(pcm, rate)
+        self.audio.save_pdm(pdm_data, pdm.name)
 
         # playback
-        audio.load(pdm.name)
-        audio.play()
-        """
+        self.audio.load(pdm.name)
+        self.audio.play()
 
 class OpenWakeWord:
     def __init__(self):
@@ -121,12 +196,12 @@ class OpenWakeWord:
 
         return False
 
+
 if __name__ == "__main__":
-    openai_cli = OpenAiCli()
-    gtts_cli = GttsCli()
-    open_wake_word = OpenWakeWord()
 
     audio = Audio()
+    openai_cli = OpenAiCli()
+    gtts_cli = GttsCli(audio)
     audio.record(5)
     _, recording = audio.normalized_pcm()
 
@@ -137,11 +212,7 @@ if __name__ == "__main__":
 
     openai_response_msg = openai_cli.make_request(text)
 
-    print(f"Mr Gippity said: {openai_response_msg}")
-    
     gtts_cli.say(openai_response_msg)
+    print("Terminating program...")
 
-    print("program terminated..")
-
-    
 
