@@ -66,13 +66,16 @@ class Audio:
         self.buffer = None
         self.sample_len = 0
 
+
     def load(self, path):
             self.path = path
+
 
     def play(self):
         data, fs = sf.read(self.path)
         sd.play(data, fs)
         sd.wait()
+
 
     def record(self, seconds):
         data = sd.rec(
@@ -86,6 +89,7 @@ class Audio:
         self.buffer = data.flatten()
         self.sample_len = len(self.buffer)
     
+
     def save_pdm(self, pdm_bits, filepath, pdm_rate=3072000):
         """Save PDM as WAV file (PYNQ .pdm format)."""
         pad = (16 - len(pdm_bits) % 16) % 16
@@ -105,9 +109,7 @@ class Audio:
     
         logging.info(f"Saved: {filepath}")
 
-
-
-
+            
     def pcm_to_pdm(self, pcm_samples, pcm_rate, pdm_rate=3072000):
         """Convert PCM audio to PDM format for PYNQ playback."""
         pcm = pcm_samples.astype(np.float64)
@@ -159,17 +161,23 @@ class GttsCli:
 
         tts.write_to_fp(mp3)
         
-        # os.system(f"afplay {mp3.name}") 
         # convert MP3 to PCM
-        system(f"ffmpeg -loglevel error -y -i {mp3.name} -c:a pcm_s16le -ac 1 {wav.name}")
+        system(f"ffmpeg -loglevel error -y -i {mp3.name} -c:a pcm_s16le -ac 1 {wav.name}")  
+        
+        # play on mac/windows
+        system(f"ffplay {wav.name}")
+        
+
+        """
+        # pdm is eclusive to pynq
         # convert PCM to PDM
         rate, pcm = wavfile.read(wav.name)
         pdm_data = self.audio.pcm_to_pdm(pcm, rate)
         self.audio.save_pdm(pdm_data, pdm.name)
-
         # playback
         self.audio.load(pdm.name)
         self.audio.play()
+        """"
 
 class OpenWakeWord:
     def __init__(self):
