@@ -278,7 +278,7 @@ class Engine:
                 
                 if len(wakeword_frames) >= WAKEWORD_WINDOW:
                     combined = np.concatenate(wakeword_frames)
-                    combined_int16 = Audio.normalize_to_int16(combined)
+                    combined_int16 = self.audio.normalize_to_int16(combined)
                     if self.open_wake_word.predict_in_recording(combined_int16):
                         print("Wakeword detected")
                         self.state = State.LISTENING
@@ -290,7 +290,7 @@ class Engine:
                 command_frames.append(frame)
                 if quiet_frames > int(LISTEN_QUIET_SECONDS / CHUNK_SECONDS):
                     command = np.concatenate(command_frames)
-                    command_int16 = Audio.normalize_to_int16(command)
+                    command_int16 = self.audio.normalize_to_int16(command)
 
                     try:
                         text = recognizer.recognize_google(sr.AudioData(command_int16.tobytes(), 16000, 2))
