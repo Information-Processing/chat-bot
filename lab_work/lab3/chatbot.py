@@ -12,7 +12,7 @@ import tempfile
 # from gpt_websocket import GptWebsocket
 import sys
 from types import ModuleType
-sys.modules["onnxruntime"] = ModuleType("onnxruntime")
+import onnxruntime
 import openwakeword
 from scipy import signal
 from scipy.io import wavfile
@@ -158,9 +158,12 @@ class GttsCli:
 
         tts.write_to_fp(mp3)
         
-        # os.system(f"afplay {mp3.name}") 
         # convert MP3 to PCM
         system(f"ffmpeg -loglevel error -y -i {mp3.name} -c:a pcm_s16le -ac 1 {wav.name}")
+
+        os.system(f"afplay {wav.name}") 
+        """
+        # PDM IS ONLY ON PYNQ BOARD
         # convert PCM to PDM
         rate, pcm = wavfile.read(wav.name)
         pdm_data = self.audio.pcm_to_pdm(pcm, rate)
@@ -169,12 +172,13 @@ class GttsCli:
         # playback
         self.audio.load(pdm.name)
         self.audio.play()
+        """
 
 class OpenWakeWord:
     def __init__(self):
 
         oww_model_name = "hey_jarvis_v0.1"
-        self.openwakeword.utils.download_models([oww_model_name])
+        openwakeword.utils.download_models([oww_model_name])
         self.oww_model = openwakeword.model.Model(
             wakeword_models=[oww_model_name],
             inference_framework="tflite",
@@ -184,7 +188,7 @@ class OpenWakeWord:
         self.detection_thresh = 0.8  # 0-1
 
     def oww_predict(self, chunk):
-        oww_model.predict(chunk)
+        self.oww_model.predict(chunk)
         return list(self.oww_model.prediction_buffer.values())[0][-1]
 
     def predict_in_recording(self, recording):
@@ -201,17 +205,23 @@ if __name__ == "__main__":
     audio = Audio()
     openai_cli = OpenAiCli()
     gtts_cli = GttsCli(audio)
-    audio.record(5)
-    _, recording = audio.normalized_pcm()
+    open_wake_word = OpenWakeWord()
+    
+    while 1:
+        print("Recording...")
 
-    recognizer = sr.Recognizer()
-    text = recognizer.recognize_google(sr.AudioData(recording, 16000, 2))
+        audio.record(2)
+        _, recording = audio.normalized_pcm()
+        if open_wake_word.predict_in_recording(recording):
+            recognizer = sr.Recognizer()
+            text = recognizer.recognize_google(sr.AudioData(recording, 16000, 2))
 
-    print(f"You said: {text}")
+            print(f"You said: {text}")
 
-    openai_response_msg = openai_cli.make_request(text)
+            openai_response_msg = openai_cli.make_request(text)
 
-    gtts_cli.say(openai_response_msg)
+            gtts_cli.say(openai_response_msg)
+
     print("Terminating program...")
 
 
