@@ -19,6 +19,7 @@ from scipy.io import wavfile
 from numba import jit
 import wave
 import logging
+import multiprocessing as mp
 
 
 """
@@ -206,11 +207,17 @@ if __name__ == "__main__":
     gtts_cli = GttsCli(audio)
     open_wake_word = OpenWakeWord()
     
-    while 1:
-        print("Recording...")
+    audio_queue = mp.Queue()
+        
+    def record_process():
+        audio.record(0.08)
+        volume, recording = audio.normalized_pcm()
+        audio_queue.put((volume, recording))
 
-        audio.record(2)
-        _, recording = audio.normalized_pcm()
+    mp.Process(target=record_process, daemon=True).start()
+        
+    while 1:
+        volume, audio_frame = audio_queue.get()
         if open_wake_word.predict_in_recording(recording):
             recognizer = sr.Recognizer()
             text = recognizer.recognize_google(sr.AudioData(recording, 16000, 2))
