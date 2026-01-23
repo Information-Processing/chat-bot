@@ -144,6 +144,15 @@ class Audio:
         # Convert to int16
         return volume, audio_data.astype(np.int16)
 
+
+    def normalize_to_int16(self, audio_float):
+        # normalize float32 audio to int16 (for combined chunks)
+        audio = audio_float - np.mean(audio_float)
+        max_val = np.max(np.abs(audio))
+        if max_val > 1e-7:
+            audio = audio / max_val * 0.99
+        return (audio * np.iinfo(np.int16).max).astype(np.int16)
+
 class GttsCli:
     
     def __init__(self, audio):
@@ -219,44 +228,38 @@ class Engine:
         self.speaking = False
         self.speaking_lock = threading.Lock()
         self.state = State.WAITING
+        self.stream = None
 
-    
     def run_record_thread(self):
-        t = threading.Thread(target=self.record_thread, daemon=True)
-        t.start()
-        print("Recording thread started...")
-
-    def record_thread(self):
-        print("Record thread running...")
-        while 1:
-            # if bot is speaking pause recording
+        def audio_callback(indata, frames, time_info, status): 
+            # continuous stream callback
+            with self.speaking_lock:
+                if self.speaking:
+                    return
+            # store raw float32 (dont normalize per chunk)
+            chunk = indata[:, 0].copy()
+            volume = np.sqrt(np.mean(chunk ** 2))
             try:
-                with self.speaking_lock:
-                    if self.speaking:
-                        time.sleep(0.02)
-                        continue 
-            
-                self.audio.record(0.08)
-                volume, recording = self.audio.normalized_pcm()
-                print(f"Recorded chunk, volume={volume:.4f}")
+                self.audio_queue.put_nowait((volume, chunk))
+            except queue.Full:
+                pass
 
-                # drop frames if ahead:
-                try:
-                    self.audio_queue.put_nowait((volume, recording))
-                except queue.Full:
-                    pass
-            except Exception as e:
-                import traceback
-                print("[ERROR]")
-                traceback.print_exc()
-                time.sleep(1)
+        self.stream = sd.InputStream(
+            samplerate=16000, channels=1, dtype='float32',
+            blocksize=1280,  # 80ms at 16kHz
+            callback=audio_callback
+        )
+        self.stream.start()
+        print("Recording stream started...")
 
     def play_on_wake(self):
+        wakeword_frames = [] 
         command_frames = []
         quiet_frames = 0
         NOISE_THRESH = 0.01
         LISTEN_QUIET_SECONDS = 1.2
         CHUNK_SECONDS = 0.08
+        WAKEWORD_WINDOW = 25  # ~2 seconds of 80ms chunks
 
         recognizer = sr.Recognizer()
         print("Listening for wakeword...")
@@ -268,41 +271,47 @@ class Engine:
                 quiet_frames = 0
 
             if self.state == State.WAITING:
-                if self.open_wake_word.oww_predict(frame) > self.open_wake_word.detection_thresh:
-                    print("Wakeword detected")
-                    self.state = State.LISTENING
-                    command_frames = []
-                    quiet_frames = 0
+                # accumulate frames and normalize combined audio
+                wakeword_frames.append(frame)
+                if len(wakeword_frames) > WAKEWORD_WINDOW:
+                    wakeword_frames.pop(0)
+                
+                if len(wakeword_frames) >= WAKEWORD_WINDOW:
+                    combined = np.concatenate(wakeword_frames)
+                    combined_int16 = Audio.normalize_to_int16(combined)
+                    if self.open_wake_word.predict_in_recording(combined_int16):
+                        print("Wakeword detected")
+                        self.state = State.LISTENING
+                        command_frames = []
+                        wakeword_frames = []
+                        quiet_frames = 0
 
-            elif self.state ==  State.LISTENING:
+            elif self.state == State.LISTENING:
                 command_frames.append(frame)
                 if quiet_frames > int(LISTEN_QUIET_SECONDS / CHUNK_SECONDS):
                     command = np.concatenate(command_frames)
+                    command_int16 = Audio.normalize_to_int16(command)
 
                     try:
-                        text = recognizer.recognize_google(sr.AudioData(command.tobytes(), 16000, 2))
+                        text = recognizer.recognize_google(sr.AudioData(command_int16.tobytes(), 16000, 2))
+                        print(f"You said: {text}")
+                        response = self.openai_cli.make_request(text)
+                        with self.speaking_lock:
+                            self.speaking = True
+                        self.gtts_cli.say(response)
+                        with self.speaking_lock:
+                            self.speaking = False
                     except sr.UnknownValueError:
-                        print("cant understand you")
-                        self.state = State.WAITING
-                        continue
+                        print("Couldnt understand audio")
 
-                print(f"You said: {text}")
+                    self.state = State.WAITING
+                    command_frames = []
 
-                response = self.openai_cli.make_request(text)
-                with self.speaking_lock:
-                    self.speaking = True
-                    self.gtts_cli.say(response)
-                with self.speaking_lock:
-                    self.speaking = False
-
-                self.state = State.WAITING
-
-
-                while not self.audio_queue.empty():
-                    try: 
-                        self.audio_queue.get_nowait()
-                    except queue.Empty: 
-                        break
+                    while not self.audio_queue.empty():
+                        try: 
+                            self.audio_queue.get_nowait()
+                        except queue.Empty: 
+                            break
 
 
 
@@ -314,11 +323,14 @@ if __name__ == "__main__":
     open_wake_word = OpenWakeWord()
         
     engine = Engine(audio, openai_cli, gtts_cli, open_wake_word)
-
     engine.run_record_thread()
-    engine.play_on_wake()
 
-
-    print("Terminating program...")
+    try:
+        engine.play_on_wake()
+    finally:
+        if engine.stream:
+            engine.stream.stop()
+            engine.stream.close()
+        print("Terminating program...")
 
 
