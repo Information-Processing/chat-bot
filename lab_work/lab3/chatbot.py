@@ -21,6 +21,7 @@ import wave
 import logging
 import threading
 import queue
+from enum import Enum
 
 
 """
@@ -201,6 +202,58 @@ class OpenWakeWord:
         return False
 
 
+class state(str, Enum):
+
+
+
+class engine:
+    def __init__(self, audio, openai_cli, gtts_cli, open_wake_word):
+        self.audio = audio
+        self.openai_cli = openai_cli
+        self.gtts_cli = gtts_cli
+        self.open_wake_word = open_wake_word
+
+        self.audio_queue = queue.Queue(maxsize=200)
+        self.speaking = False
+        self.speaking_lock = threading.Lock()
+        self.state = 
+
+    
+    def run_record_thread(self):
+        t = threading.Thread(target=self.record_thread, daemon=True)
+        t.start()
+
+    def record_thread(self):
+        while 1:
+            # if user is not speaking dont record and add nothing valuable to queue
+            with self.speaking_lock:
+                if self.speaking:
+                    time.sleep(0.02)
+                    contnue
+        
+            self.audio.record(0.08)
+            volume, recording = self.audio.normalized_pcm()
+
+            # drop frames if ahead:
+            try:
+                self.audio_queue.put((volume, recording))
+            except queue.Full:
+                pass
+
+    def play_on_wake(self):
+
+        while 1:
+            volume, audio_frame = audio_queue.get()
+            if open_wake_word.predict_in_recording(audio_frame):
+                recognizer = sr.Recognizer()
+                text = recognizer.recognize_google(sr.AudioData(recording, 16000, 2))
+
+                print(f"You said: {text}")
+
+                openai_response_msg = openai_cli.make_request(text)
+
+                gtts_cli.say(openai_response_msg)
+
 
 
 if __name__ == "__main__":
@@ -211,42 +264,6 @@ if __name__ == "__main__":
     open_wake_word = OpenWakeWord()
 
 
-    audio_queue = queue.Queue(maxsize=200)
-    speaking = False
-    speaking_lock = threading.Lock()
-
-    def record_process():
-        nonlocal speaking
-        while 1:
-            # if user is not speaking dont record and add nothing valuable to queue
-            with speaking_lock:
-                if speaking:
-                    time.sleep(0.02)
-                    contnue
-        
-            audio.record(0.08)
-            volume, recording = audio.normalized_pcm()
-
-            # drop frames if ahead:
-            try:
-                audio_queue.put((volume, recording))
-            except queue.Full:
-                pass
-
-    t = threading.Thread(target=record_process, daemon=True)
-    t.start()
-
-    while 1:
-        volume, audio_frame = audio_queue.get()
-        if open_wake_word.predict_in_recording(audio_frame):
-            recognizer = sr.Recognizer()
-            text = recognizer.recognize_google(sr.AudioData(recording, 16000, 2))
-
-            print(f"You said: {text}")
-
-            openai_response_msg = openai_cli.make_request(text)
-
-            gtts_cli.say(openai_response_msg)
 
     print("Terminating program...")
 
