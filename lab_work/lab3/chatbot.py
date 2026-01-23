@@ -66,16 +66,13 @@ class Audio:
         self.buffer = None
         self.sample_len = 0
 
-
     def load(self, path):
             self.path = path
-
 
     def play(self):
         data, fs = sf.read(self.path)
         sd.play(data, fs)
         sd.wait()
-
 
     def record(self, seconds):
         data = sd.rec(
@@ -89,7 +86,6 @@ class Audio:
         self.buffer = data.flatten()
         self.sample_len = len(self.buffer)
     
-
     def save_pdm(self, pdm_bits, filepath, pdm_rate=3072000):
         """Save PDM as WAV file (PYNQ .pdm format)."""
         pad = (16 - len(pdm_bits) % 16) % 16
@@ -109,7 +105,9 @@ class Audio:
     
         logging.info(f"Saved: {filepath}")
 
-            
+
+
+
     def pcm_to_pdm(self, pcm_samples, pcm_rate, pdm_rate=3072000):
         """Convert PCM audio to PDM format for PYNQ playback."""
         pcm = pcm_samples.astype(np.float64)
@@ -128,11 +126,10 @@ class Audio:
     def normalized_pcm(self):
         # crudely downsample to 16kHz
         fs = 16000
-        samples = int(np.round(self.sample_len * fs / self.sample_rate))
-        fractional_sample_indices = np.arange(samples) * (self.sample_rate / fs)
-        sample_indices = np.clip(np.round(fractional_sample_indices).astype(int), 0, self.sample_len - 1)
-        audio_data = self.buffer[sample_indices].astype(np.float32)
 
+        # AA and then sample to 16kHZ
+        audio_data = signal.resample_poly(self.buffer.flatten(), fs, self.sample_rate)
+        audio_data = audio_data.astype(np.float32)
         # Remove DC offset
         audio_data -= np.mean(audio_data)
 
@@ -161,23 +158,17 @@ class GttsCli:
 
         tts.write_to_fp(mp3)
         
+        # os.system(f"afplay {mp3.name}") 
         # convert MP3 to PCM
-        system(f"ffmpeg -loglevel error -y -i {mp3.name} -c:a pcm_s16le -ac 1 {wav.name}")  
-        
-        # play on mac/windows
-        system(f"ffplay {wav.name}")
-        
-
-        """
-        # pdm is eclusive to pynq
+        system(f"ffmpeg -loglevel error -y -i {mp3.name} -c:a pcm_s16le -ac 1 {wav.name}")
         # convert PCM to PDM
         rate, pcm = wavfile.read(wav.name)
         pdm_data = self.audio.pcm_to_pdm(pcm, rate)
         self.audio.save_pdm(pdm_data, pdm.name)
+
         # playback
         self.audio.load(pdm.name)
         self.audio.play()
-        """"
 
 class OpenWakeWord:
     def __init__(self):
