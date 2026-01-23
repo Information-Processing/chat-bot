@@ -19,7 +19,8 @@ from scipy.io import wavfile
 from numba import jit
 import wave
 import logging
-import multiprocessing as mp
+import threading
+import queue
 
 
 """
@@ -200,25 +201,44 @@ class OpenWakeWord:
         return False
 
 
+
+
 if __name__ == "__main__":
 
     audio = Audio()
     openai_cli = OpenAiCli()
     gtts_cli = GttsCli(audio)
     open_wake_word = OpenWakeWord()
-    
-    audio_queue = mp.Queue()
-        
-    def record_process():
-        audio.record(0.08)
-        volume, recording = audio.normalized_pcm()
-        audio_queue.put((volume, recording))
 
-    mp.Process(target=record_process, daemon=True).start()
+
+    audio_queue = queue.Queue(maxsize=200)
+    speaking = False
+    speaking_lock = threading.Lock()
+
+    def record_process():
+        nonlocal speaking
+        while 1:
+            # if user is not speaking dont record and add nothing valuable to queue
+            with speaking_lock:
+                if speaking:
+                    time.sleep(0.02)
+                    contnue
         
+            audio.record(0.08)
+            volume, recording = audio.normalized_pcm()
+
+            # drop frames if ahead:
+            try:
+                audio_queue.put((volume, recording))
+            except queue.Full:
+                pass
+
+    t = threading.Thread(target=record_process, daemon=True)
+    t.start()
+
     while 1:
         volume, audio_frame = audio_queue.get()
-        if open_wake_word.predict_in_recording(recording):
+        if open_wake_word.predict_in_recording(audio_frame):
             recognizer = sr.Recognizer()
             text = recognizer.recognize_google(sr.AudioData(recording, 16000, 2))
 
