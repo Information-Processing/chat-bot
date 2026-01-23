@@ -75,14 +75,12 @@ class Audio:
         sd.wait()
 
     def record(self, seconds):
-        data = sd.rec(
-            frames=int(seconds * self.sample_rate),
-            samplerate=self.sample_rate,
-            channels=1,
-            dtype="float32",
-            blocking=True
-        )
-        self.buffer = data.flatten()
+        frames = int(seconds * self.sample_rate)
+        
+        with sd.InputStream(samplerate=self.sample_rate, channels=1, dtype="float32") as stream:
+            recording, _ = stream.read(frames)
+        
+        self.buffer = recording.flatten()
         self.sample_len = len(self.buffer)
     
     def save_pdm(self, pdm_bits, filepath, pdm_rate=3072000):
