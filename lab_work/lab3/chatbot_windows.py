@@ -50,19 +50,47 @@ class OpenAiCli:
         load_dotenv(env_path)
         OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
         self.gpt = OpenAI(api_key=OPENAI_API_KEY)
+        
+        #Convo history init seqeucne
+        self.conversation_history = []
+        self.max_history = 6  # Keep last 6 messages (3 exchanges)
+        self.system_prompt = """Be concise. You have the three most recent interactions between user and system. Reply accordingly."""
 
     def make_request(self, message):
+        #add user query to history
+        self.conversation_history.append({"role": "user", "content": message})
+        
+        #create messages array that stores system prompt followed by interactions
+        message_array = [
+            {"role": "system", "content": self.system_prompt}
+        ]
+        
+        #keep recent context - message_array + max_history length convo history
+        message_array = message_array + self.conversation_history[-self.max_history:]
+
         response = self.gpt.chat.completions.create(
             model="gpt-4o-mini",
-            messages=[{"role": "user", "content": message}],
+            messages=message_array,
             max_tokens=700,
             temperature=0.7
         )
         
         response_msg = response.choices[0].message.content
-
+        
+        #add ai response to history
+        self.conversation_history.append({"role": "assistant", "content": response_msg})
+        
         print(f"LLM responded {response_msg}")
         return response_msg
+    
+    def clear_history(self):
+        """Clears convo history"""
+        self.conversation_history = []
+        print("Covno history cleared")
+
+    def view_history(self):
+        """View convo history"""
+        print(self.conversation_history)
 
 
 class Audio:
