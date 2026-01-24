@@ -9,3 +9,4 @@ python-dotenv
 gTTS
 openwakeword
 onnxruntime
+playsound==1.2.2
