@@ -20,3 +20,31 @@ of processing and cleanning the audio. PCM audio is multi-bit (in the case of th
 for multiple adaptations to the audio signal including:
 - Filtering out white noise
 - Adjusting the volume of the signal
+
+Given the speed of the signal transfer, the AXI peripheral, i.e. `d_axi_pdm_v1_2_S_AXI`, provides a FIFO buffer
+which holds onto output bits from the hardware when the CPU is unable to process these bits fast enough and is
+busy.
+
+### Task 2B: Creating an Audio Frontend (PDM-to-PCM Converter)
+
+In this task, we will be using a simolified version of tbe BaseOverlay using the `lab2-skeleton.tcl` skeleton
+file. In this overlay, we are requird to update blocks `pdm_microphone_0` and `audio_direct_0` in the final
+schematic shown below:
+
+<p align="center"> <img src="../../images/lab2-final-design.jpg" /> </p>
+
+In this section we use a CIC compiler. A CIC compiler acts a digital filter to handle signals with multiple bits
+which also allows for changing the sampling frequency of data. In this case, we use the filter for decimation
+(takes a high speed PDM stream and converts it to a lower-speed PCM stream). This is used for efficiency, given that
+the CIC filters only use adders and delay lines (and other filters often require multipliers), and anti-aliasing, 
+ensuring a smoothed out signal preventing noise produced when lowering sample rate.
+
+We connect the CIC compiler to the `pdm_mic.v` file given to us (ensuring decimation of the 1-bit PDM input). The
+following adjustments are made to the CIC compiler in Vivado as such:
+- **No. stages = 5-** This is larger than usual (often 3-4) allowing for sharper audio
+- **Initial Sample Frequency = 2.4Mhz-** Microphone frequency of the PYNQ-Z1 board (from PDM signal frequency)
+- **Clock Frequency = 50MHz-** Clock input of the PYNQ-Z1 board
+
+### Task 2C:
+
+
