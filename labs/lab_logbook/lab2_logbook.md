@@ -9,14 +9,14 @@
 ## 2.3 Audio Processing (Hardware)
 
 In this section, we looked at the audio components on the PYNQ-Z1 base overlay, understanding how 
-drivers interact wtth hardware components and using this to create hardware blocks for PDM-to-PCM conversion.
+drivers interact with hardware components and using this to create hardware blocks for PDM-to-PCM conversion.
 
 ### Audio module in the base overlay
 
 In this module, a PDM-to-PWM bypass is used taking a 1-bit signal from the microphone in the PYNQ 
 board, and sends this signal to the PWM output for the speakers. This process is extremely fast given that 
-both signals are only 1-bit wide, however, these signals are difficult to manipluate mathematically in terms
-of processing and cleanning the audio. PCM audio is multi-bit (in the case of these labs 32-bits) which allow
+both signals are only 1-bit wide, however, these signals are difficult to manipulate mathematically in terms
+of processing and cleaning the audio. PCM audio is multi-bit (in the case of these labs 32-bits) which allow
 for multiple adaptations to the audio signal including:
 - Filtering out white noise
 - Adjusting the volume of the signal
@@ -27,8 +27,8 @@ busy.
 
 ### Task 2B: Creating an Audio Frontend (PDM-to-PCM Converter)
 
-In this task, we will be using a simolified version of tbe BaseOverlay using the `lab2-skeleton.tcl` skeleton
-file. In this overlay, we are requird to update blocks `pdm_microphone_0` and `audio_direct_0` in the final
+In this task, we used a simplified version of tbe BaseOverlay using the `lab2-skeleton.tcl` skeleton
+file. In this overlay, we are required to update blocks `pdm_microphone_0` and `audio_direct_0` in the final
 schematic shown below:
 
 <p align="center"> <img src="../../images/lab2-final-design.jpg" /> </p>
@@ -56,14 +56,14 @@ BaseOverlay. The `audio_direct_v1_1.v` file has the following changes:
 **Changes to I/O Ports:**
 
 ```
-input wire [31:0] pcm_data_in, // Ensueres 32-bit PCM number sample is sent all at once by CIC compiler
+input wire [31:0] pcm_data_in, // Ensures 32-bit PCM number sample is sent all at once by CIC compiler
 input wire mic_data_valid, // Controls when CIC compiler can send 32-bit PCM sample to FIFO
 ```
 ---
 
 **Removal of `audio_direct_path`**
 
-This module is removed as it origonally allowed for PDM-to-PWM bypass. Given we need decimation for the PCM output 
+This module is removed as it originally allowed for PDM-to-PWM bypass. Given we need decimation for the PCM output 
 signal through the CIC filter, this module becomes redundant, hence the following code is removed:
 
 ```
@@ -90,7 +90,7 @@ wire pwm_audio_i, pwm_audio_o;
 ```
 
 Also note the following:
-- The original code uses a MUX with `sel_direct` to chose between two differnet paths of PDM signals
+- The original code uses a MUX with `sel_direct` to chose between two different paths of PDM signals
 - Given the removal of signals `audio_out_o1` and `audio_out_o2`, the output ports `audio_shutdown` and `audio_out`
   must be altered
 - Originally, the use of to clocks allow for different clock signals in conversion, the new build will use a single
@@ -127,3 +127,48 @@ Also note that the files `pdm_ser` and `pdm_rxtx` have been removed for the foll
    unusable.
 2. A CIC compiiler acts as a Deserializer (given it takes 1-bit and outputs 32) - making pdm_ser unnecessary.
 3. Won't allow for 32-bit PCM streams to pass to the receiver.
+
+
+### Evaluating hardware and performance
+In this section we evaluated how our appraoch compares to the standard configuration and also explored hardware-software co-optimisation.
+
+The lab instructions guide a modification of the existing `audio_direct` block. However, we identified that simply widening the ports leave significant redundant logic.
+
+|Feature|Standard Lab Approach|Hardware Optimised Approach|Benefit of Optimisation|
+|-------|---------------------|---------------------------|-----------------------|
+|Bypass Path| Retains `audio_direct_path`|Removed|Eliminates unused MUX logic and routing resources, as we are performing recording/playback via RAM, not immediate hardware loopback|
+|Deserialisation|Uses `pdm_rxtx` shift registers|Removed|We utilise the CIC compiler as the deserialiser. Connecting the CIC output directly to the AXI FIFO removes the need for the `pdm_rxtx` state machine wrapper|
+|Complexity|High|Lower use of resource|Reducing the module count minimises the risk of timing violations and simplifies the data path|
+
+**Hardware Evaluation:** By removing `pdm_rxtx` and `pdm_ser`, we significantly reduced LUT and FF utilisation. The standard design required state machines to manage the valid/ready handshake for the PDM stream; our design relies on the CIC compiler's native validity signal fed directly into the FIFO, this created a more optimised hardware for performance.
+
+**Standard configuration:**
+<p align="center"> <img src="./lab2_images/standard_impl.png" /> </p>
+<p align="center"> <img src="./lab2_images/standard_utilisation.png" /> </p>
+
+**Hardware optimised design:**
+<p align="center"> <img src="./lab2_images/optimised_impl.jpeg" /> </p>
+<p align="center"> <img src="./lab2_images/optimised_utilisation.jpeg" /> </p>
+
+### Hardware-Software Co-Design Exploration
+We discovered that the system's stability depends entirely on matching the Hardware Decimation Rate with the Software Buffer Allocation. We tested two configurations to optimize performance:
+
+1. The "Standard" Configuration (decimation 64)
+
+    * Hardware: 50 MHz Clock / decimation 64 -> ~39 kHz Sample Rate.
+
+    * Software: Python multiplier * 2.
+
+    Outcome: This produced standard audio quality.
+
+2. The "High-Fidelity" Configuration (Our Choice)
+
+    * Hardware: 50 MHz Clock / decimation 32.
+
+    * Software: Python multiplier * 4.
+
+    Outcome: By lowering the hardware decimation to 32, we doubled the data throughput to ~78 kHz. We found that we must increase the Python buffer multiplier to 4 to match this speed.
+
+      * Failures observed: If we kept the multiplier at 2 while running decimation 32, the buffer filled in 2.5 seconds (instead of 5)
+
+      * Matched timing: With the multiplier at 4, we achieved high-fidelity recording with stable timing.
