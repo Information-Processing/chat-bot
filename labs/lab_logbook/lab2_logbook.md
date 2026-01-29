@@ -115,11 +115,9 @@ audio_direct_v1_1_S_AXI_inst ( // name of the new AXI module, given in the hw_fi
 .pdm_m_clk_o      (pdm_clk), // clock signal generated in pdm_clk_gen.v
 ```
 
-Also note that in the `audio_direct_v1_1_S00_AXI.v` module, the module describing the FIFO has its port changed to 
-`.srst` due to  synchronous reset port being used and named in the FIFO in `pdm_microphoone_0`.
+Also note that in the `audio_direct_v1_1_S00_AXI.v` module, the module describing the FIFO has its port changed to `.srst` due to  synchronous reset port being used and named in the FIFO in `pdm_microphoone_0`.
 
-Also note that the FIFO in `pdm_microphone_0` is used collect all PDM bits for the CIC compiler whereas the FIFO in
-the AXI module is used store 32-bit PCM samples for the CPU to process.
+Also note that the FIFO in `pdm_microphone_0` is used collect all PDM bits for the CIC compiler whereas the FIFO in the AXI module is used store 32-bit PCM samples for the CPU to process.
 
 Also note that the files `pdm_ser` and `pdm_rxtx` have been removed for the following reasons:
 
@@ -130,7 +128,7 @@ Also note that the files `pdm_ser` and `pdm_rxtx` have been removed for the foll
 
 
 ### Evaluating hardware and performance
-In this section we evaluated how our appraoch compares to the standard configuration and also explored hardware-software co-optimisation.
+In this section we evaluated how our appraoch compares to the standard configuration and also explored hardware-software optimisation.
 
 The lab instructions guide a modification of the existing `audio_direct` block. However, we identified that simply widening the ports leave significant redundant logic.
 
@@ -140,7 +138,7 @@ The lab instructions guide a modification of the existing `audio_direct` block. 
 |Deserialisation|Uses `pdm_rxtx` shift registers|Removed|We utilise the CIC compiler as the deserialiser. Connecting the CIC output directly to the AXI FIFO removes the need for the `pdm_rxtx` state machine wrapper|
 |Complexity|High|Lower use of resource|Reducing the module count minimises the risk of timing violations and simplifies the data path|
 
-**Hardware Evaluation:** By removing `pdm_rxtx` and `pdm_ser`, we significantly reduced LUT and FF utilisation. The standard design required state machines to manage the valid/ready handshake for the PDM stream; our design relies on the CIC compiler's native validity signal fed directly into the FIFO, this created a more optimised hardware for performance.
+**Hardware Evaluation:** By removing `pdm_rxtx` and `pdm_ser`, we reduced LUT and FF utilisation. The standard design required state machines to manage the valid/ready handshake for the PDM stream; our design relies on the CIC compiler's native validity signal fed directly into the FIFO, this created a more optimised hardware for performance.
 
 **Standard configuration:**
 <p align="center"> <img src="./lab2_images/standard_impl.png" /> </p>
@@ -151,24 +149,19 @@ The lab instructions guide a modification of the existing `audio_direct` block. 
 <p align="center"> <img src="./lab2_images/optimised_utilisation.jpeg" /> </p>
 
 ### Hardware-Software Co-Design Exploration
-We discovered that the system's stability depends entirely on matching the Hardware Decimation Rate with the Software Buffer Allocation. We tested two configurations to optimize performance:
+We discovered that the system's stability depends entirely on matching the hardware decimation rate with the software buffer allocation in `new_audio.py`. We tested two configurations to optimise performance:
 
-1. The "Standard" Configuration (decimation 64)
+1. Standard Configuration
+    * Hardware: 50 MHz Clock / decimation 64 -> approx. 39 kHz Sample Rate.
+    * Software: Python multiplier * 2
 
-    * Hardware: 50 MHz Clock / decimation 64 -> ~39 kHz Sample Rate.
+    Outcome: Produced standard audio quality
 
-    * Software: Python multiplier * 2.
-
-    Outcome: This produced standard audio quality.
-
-2. The "High-Fidelity" Configuration (Our Choice)
-
-    * Hardware: 50 MHz Clock / decimation 32.
-
-    * Software: Python multiplier * 4.
-
-    Outcome: By lowering the hardware decimation to 32, we doubled the data throughput to ~78 kHz. We found that we must increase the Python buffer multiplier to 4 to match this speed.
-
+2. High Fidelity Configuration
+    * Hardware: 50 MHz Clock / decimation 32
+    * Software: Python multiplier * 4
+    
+    Outcome: By lowering the hardware decimation to 32, we doubled the data throughput to approx. 78 kHz. We found that we must increase the Python buffer multiplier to 4 to match the sample rate speed.
+      * Higher fidelity of audio while maintaining the same resource usage of the standard configuration
       * Failures observed: If we kept the multiplier at 2 while running decimation 32, the buffer filled in 2.5 seconds (instead of 5)
-
       * Matched timing: With the multiplier at 4, we achieved high-fidelity recording with stable timing.
