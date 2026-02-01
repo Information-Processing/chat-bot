@@ -11,6 +11,8 @@
 In this section, we looked at the audio components on the PYNQ-Z1 base overlay, understanding how 
 drivers interact with hardware components and using this to create hardware blocks for PDM-to-PCM conversion.
 
+The BaseOverlay provides PDM-to-PWM conversions to enable playback from the audio buffer. However, to utilise Whisper, we need to convert the recorded PDM data into PCM, which can then be wrapped in a standard audio file format such as .wav or .mp3 before making an API call.
+
 ### Audio module in the base overlay
 
 In this module, a PDM-to-PWM bypass is used taking a 1-bit signal from the microphone in the PYNQ 
@@ -165,3 +167,10 @@ We discovered that the system's stability depends entirely on matching the hardw
       * Higher fidelity of audio while maintaining the same resource usage of the standard configuration
       * Failures observed: If we kept the multiplier at 2 while running decimation 32, the buffer filled in 2.5 seconds (instead of 5)
       * Matched timing: With the multiplier at 4, we achieved high-fidelity recording with stable timing.
+
+### Comparison of the functionality of full design of PDM to PCM converter and our lab2 skeleton hardware optimised
+The original Base Overlay design was a general purpose audio controller used to demonstrate all capabilities of the board: direct PDM-to-PWM loopback, hardware-timed playback, and recording. As a result, the complexity of the original design is much higher, keeping significant logic that is redundant for our specific PDM-to-PCM recording application.
+
+In the full design, the `audio_direct_path` allows for instant loopback, and `pdm_ser` enables the FPGA to drive the audio output directly. While robust, these features consume LUTs and routing resources that are unnecessary when the goal is simply to capture audio for software processing (Whisper API). Our optimised skeleton approach strips this down to the essentials: a unidirectional pipeline from microphone to CIC Filter to FIFO to CPU.
+
+By removing `pdm_rxtx` and serialisers, we shifted the design from a complex, multi-mode controller to a dedicated streaming accelerator. This reduction not only saves FPGA resources but also simplifies the control logic. The trade-off is the loss of hardware-based playback.
