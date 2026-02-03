@@ -52,7 +52,7 @@ logging.getLogger('urllib3').setLevel(logging.WARNING)
 # BLOCK 3: PYNQ INIT
 # ============================================================================
 overlay = Overlay('base.bit')
-pynq_audio = overlay.audio_direct_0 #how is audio direct 0 configured. also audio direct .view function
+pynq_audio = overlay.audio_direct_0
 audio_lock = Lock()
 audio_lock_priority = Value('c', b'i')
 
@@ -138,26 +138,29 @@ def pcm_to_pdm_high_snr(pcm):
     """
     # 1. Normalize and apply Soft-Clipping to reduce static 'shatter'
     pcm = pcm.astype(np.float32) / 32768.0
-    pcm = np.tanh(pcm * 1.5) / 1.5 # Soft-limit peaks
-    
-    # 2. Add high-frequency dither (shoves hiss out of audible range)
+    alpha = 1.5 # -> why by 1.5?
+
+    # note tanh = (exp(x)-exp(-x))/(exp(x) + exp(-x)) -> [-1,1] bounded
+    pcm = np.tanh(pcm * alpha) / alpha # Soft-limit peaks
+
+    # 2. Add high-frequency dither add reandopm noise to reduce quantization error.
+    # note to hardware, use LFSR to add random noise
     dither = (np.random.rand(len(pcm)) - 0.5) * 0.001
     pcm += dither
 
-    # 3. Fade Out and Pad
-    # Using 192k for better clock alignment
+    # 3. Fade Out and Pad -> add zero signal at the end 0.2s
     sr = 192000
     padding = np.zeros(int(sr * 0.2), dtype=np.float32)
     pcm = np.concatenate([pcm, padding])
     
-    # Align to DMA chunk
+    # Align to DMA chunk -> ensure multiple of 128 elems in pcm and pdm
     if len(pcm) % 128 != 0:
         pcm = np.concatenate([pcm, np.zeros(128 - (len(pcm) % 128), dtype=np.float32)])
 
     n = len(pcm)
     pdm = np.zeros(n, dtype=np.int16)
     
-    # 4. 2nd-Order Modulator
+    # 4. 2nd-Order Modulator -> note: 32767 is all 1s -32768 is all 0s
     i1, i2, feedback = 0.0, 0.0, 0.0
     for i in range(n):
         i1 += pcm[i] - feedback
@@ -168,10 +171,11 @@ def pcm_to_pdm_high_snr(pcm):
         pdm[i] = val
         feedback = 1.0 if val > 0 else -1.0
     
-    # 5. Zero-fill the very end to kill the high-pitch squeak
+    # 5. Zero-fill the very end to kill the high-pitch squeak -> np.tile fills the rest with up down up down ... 512 times
     pdm[-1024:] = np.tile([32767, -32768], 512)
             
     return pdm
+
 # ============================================================================
 # HYBRID IMPLEMENTATION
 # ============================================================================
@@ -229,6 +233,7 @@ class GttsCli:
 # ============================================================================
 # PURE SOFTWARE IMPLEMENTATION
 # ============================================================================
+
 class OpenAiCli:
     """OpenAI GPT client with conversation history."""
     
