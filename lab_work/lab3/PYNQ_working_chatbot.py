@@ -5,7 +5,6 @@
 import numpy as np
 import speech_recognition as sr
 from openai import OpenAI
-import os
 from os import system
 from gtts import gTTS
 import tempfile
@@ -15,15 +14,10 @@ from types import ModuleType
 sys.modules["onnxruntime"] = ModuleType("onnxruntime")
 
 from openwakeword.model import Model
-from scipy import signal
 from scipy.io import wavfile
-import wave
 import logging
-import threading
-import queue
 from enum import Enum
 import time
-
 from multiprocessing import Value, Lock
 
 from pynq import Overlay
