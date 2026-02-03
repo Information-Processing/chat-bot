@@ -52,17 +52,20 @@ logging.getLogger('urllib3').setLevel(logging.WARNING)
 # BLOCK 3: PYNQ INIT
 # ============================================================================
 overlay = Overlay('base.bit')
-pynq_audio = overlay.audio_direct_0
+pynq_audio = overlay.audio_direct_0 #how is audio direct 0 configured. also audio direct .view function
 audio_lock = Lock()
 audio_lock_priority = Value('c', b'i')
+
 # ============================================================================
 # BLOCK 4: FUCNTIONS THAT WILL BE IMPLEMENTED IN HARDWARE STACK
 # ============================================================================
 def popcount_lut():
     """Create lookup table for counting bits in a byte."""
-    return np.array([bin(i).count('1') for i in range(256)], dtype=np.uint8)
+    temp_arr = [bin(i).count('1') for i in range(256)]
+    return np.array(temp_arr, dtype=np.uint8)
 
 # Pre-compute lookup table at module load
+# array of index to bit count (acts like a map/dict)
 POPCOUNT_LUT = popcount_lut()
 
 def pdm_to_pcm(buffer, target_sr=16000):
@@ -75,12 +78,20 @@ def pdm_to_pcm(buffer, target_sr=16000):
     buf_bytes = buffer.view(np.uint8)
     
     # Count bits using lookup table (FAST - vectorized)
+    # create numpy array out of using np.buf_bytes as and array of indexs for np.POPCOUNT_LUT to store in np.byte_counts
     byte_counts = POPCOUNT_LUT[buf_bytes]
-    
+    '''
+    below we observe an example of how we convert to 32 bit samples
+    [2,4,5,6,1,2,3,4] -> 8 bit samples byte_counts
+
+    [[2,4,5,6],[1,2,3,4],...]
+
+    [17,10,...] -> summed bit_counts
+    '''
     # Sum every 4 bytes to get count per int32
     bit_counts = byte_counts.reshape(-1, 4).sum(axis=1).astype(np.float64)
     
-    # Center around 0 (16 bits = silence in 32-bit word)
+    # Center around 0 
     audio = bit_counts - 16.0
     
     # Decimate with reshape and mean (FAST - vectorized)
@@ -96,8 +107,18 @@ def pdm_to_pcm(buffer, target_sr=16000):
     
     # Remove DC offset
     audio_dec = audio_dec - np.mean(audio_dec)
+
+    '''
+    [2,4,5,6,1,2,3,4] -> 32 bit samples
+
+    [[2,4,5,6,...decimation],[1,2,3,4,...decimation],...]
+
+    [mean 1,mean 2,..., mean n] -> mean arrays, sampled down to 16k = target_samplerate = n
+
+    [mean 1 - u,mean 2 - u,..., mean n - u] -> u = dc offset = average of all values (center = 0)
+    '''
     
-    # Normalize to int16 range
+    # Normalize to int16 range -> scaling
     peak = np.max(np.abs(audio_dec))
     if peak > 0.01:
         audio_16 = (audio_dec / peak * 30000).astype(np.int16)
