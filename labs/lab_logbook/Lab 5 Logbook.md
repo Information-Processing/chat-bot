@@ -1,6 +1,6 @@
 # Lab 5 Logbook: Building a Relational Database with SQLite
 
-**ELEC50009 Information Processing — Lab 5**
+**Information Processing — Lab 5**
 
 ---
   - Lab completed in full. All sections (SQLite installation, Chinook database setup, database inspection, remote query server and client, API-based queries) completed successfully.
@@ -33,7 +33,6 @@ I logged into the EC2 instance via SSH (as in Lab 4). I then ran:
 
 1. **Updated the package list:** `sudo apt update`
 2. **Installed SQLite:** `sudo apt install sqlite3 -y`  
-   (I had initially typed `sudp` instead of `sudo`; the shell suggested the correct command and I re-ran it.)
 3. **Verified the installation:** `sqlite3 --version`  
    The reported version was **3.45.1** (2024-01-30).
 
@@ -94,10 +93,10 @@ The goal was to run a **Flask** server on the EC2 instance that accepts an SQL q
 
 On the EC2 instance I:
 
-1. **Installed the venv package:** `sudo apt install python3-venv` (again, I had typed `sudp` first and corrected to `sudo`).
+1. **Installed the venv package:** `sudo apt install python3-venv`.
 2. **Created a virtual environment:** `python3 -m venv venv`
 3. **Activated it:** `source venv/bin/activate` (prompt then showed `(venv)`).
-4. **Installed Flask:** I ran `pip install flask` (without typing the `(venv) $` prefix, which would have caused a bash syntax error). Flask and its dependencies installed successfully.
+4. **Installed Flask:** I ran `pip install flask`. Flask and its dependencies installed successfully.
 
 ### 2.2 Creating and Running the Server (`db_server.py`)
 
@@ -143,7 +142,7 @@ I implemented and tested the following on the server and client:
   - SQL: `SELECT Album.Title FROM Album JOIN Artist ON Album.ArtistId = Artist.ArtistId WHERE Artist.Name = ?`  
   - Response: JSON list of album titles (e.g. for `artist=AC/DC`: `["For Those About To Rock We Salute You", "Let There Be Rock"]`).
 
-On the server I added a small **helper** `run_query(sql, params=())` to open the DB, execute the query with parameters, and return rows, and used it in both `/artists` and `/albums` so that all user input was passed as parameters (safe from SQL injection). The original **POST `/query`** endpoint was left in place for the earlier client.
+On the server I added a small **helper** `run_query(sql, params=())` to open the DB, execute the query with parameters, and return rows, and used it in both `/artists` and `/albums` so that all user input was passed as parameters (safe from SQL injection). By using `?` as a placeholder and passing values separately in `cur.execute(sql, params)`, the client could never send a malicious string that would be executed as SQL—for example, a command that could delete the database. This is a major security improvement over the Section 2 approach, where the client sent raw SQL in the POST body and the server executed it directly. The original **POST `/query`** endpoint was left in place for the earlier client.
 
 ### 3.2 Troubleshooting While Implementing the API
 
