@@ -165,3 +165,20 @@ We discovered that the system's stability depends entirely on matching the hardw
       * Higher fidelity of audio while maintaining the same resource usage of the standard configuration
       * Failures observed: If we kept the multiplier at 2 while running decimation 32, the buffer filled in 2.5 seconds (instead of 5)
       * Matched timing: With the multiplier at 4, we achieved high-fidelity recording with stable timing.
+
+  ## Attempt of pcm-to-pdm conversion
+
+  In order to increase efficiency within in signal processing, we attempted to extend our hardware design to allow for pcm-to-pdm conversion, ensuring that signals, such as the 16-bit signal from the gtts input,
+  could be modulated into 1-bit signals whilst maintaining the quality of the signaal. Given the two pcm signals we have preent are both clean signals, i.e. have been filtered already, we only have to deal with
+  the modulation of the signals. We chose to use a second-order sigma-delta modulator for reasons such as:
+  - providing a high snr
+  - efficiently transforming 32/16 bit pcm signals to 1-bit pcm signals without inroducing much noise
+  - the use of a sigma-delta mdulator in the software shoown in lab3, this takes a while to do in software and hence can advance the time taken to obtain these signals if passed through hardware
+
+**sigma delta photo**
+
+---
+
+The `sigmadelta.v` modulator was built with the following contsrictions accounted for:
+
+- 2-bit overshoot - allowing for 
