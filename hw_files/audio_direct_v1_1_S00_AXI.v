@@ -405,6 +405,7 @@ module audio_direct_v1_1_S00_AXI #
     end
 
     // Implement PDM_DATA_OUT_REG and PDM_STATUS_REG updates
+    // Allows Python to read 32 bit PCM sample directly for FIFO
     always @( posedge S_AXI_ACLK )
     begin
         if ( S_AXI_ARESETN == 1'b0 )
@@ -414,13 +415,14 @@ module audio_direct_v1_1_S00_AXI #
         end
         else
         begin
-            PDM_DATA_OUT_REG <= RX_FIFO_D_O;
-            PDM_STATUS_REG[0] <= TX_FIFO_EMPTY_O;
-            PDM_STATUS_REG[1] <= TX_FIFO_FULL_O;
-            PDM_STATUS_REG[15:2] <= 14'b0;
-            PDM_STATUS_REG[16] <= RX_FIFO_EMPTY_O;
-            PDM_STATUS_REG[17] <= RX_FIFO_FULL_O;
-            PDM_STATUS_REG[31:18] <= 14'b0;
+            // Map the FIFO output to the Read Register
+            PDM_DATA_OUT_REG <= RX_FIFO_D_O; 
+            
+            // Status Flags: Python needs these to know if the buffer is empty
+            PDM_STATUS_REG[0]  <= TX_FIFO_EMPTY_O;
+            PDM_STATUS_REG[1]  <= TX_FIFO_FULL_O;
+            PDM_STATUS_REG[16] <= RX_FIFO_EMPTY_O; // Bit 16: RX Empty
+            PDM_STATUS_REG[17] <= RX_FIFO_FULL_O;  // Bit 17: RX Full
         end
     end
 

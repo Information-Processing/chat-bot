@@ -63,7 +63,7 @@ assign RxFifoDataIn = PDM_M_DATA_I;
 
 // Serializer instantiation
 pdm_ser #(
-    .C_NR_OF_BITS(16),
+    .C_NR_OF_BITS(32),
     .C_SYS_CLK_FREQ_MHZ(100),
     .C_PDM_FREQ_MHZ(3)
 ) Inst_Serializer (
@@ -95,7 +95,7 @@ assign TX_FIFO_EMPTY_O = TxFifoEmpty;
 fifo_generator_0 Inst_PdmRxFifo (
     .clk(CLK_I),
     .srst(RX_FIFO_RST_I),
-    .din(RxFifoDataIn),
+    .din(PDM_M_DATA_I),
     .wr_en(mic_data_valid_i),
     .rd_en(RxFifoRdEn),
     .dout(RX_FIFO_D_O),

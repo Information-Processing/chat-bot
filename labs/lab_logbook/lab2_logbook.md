@@ -174,3 +174,18 @@ The original Base Overlay design was a general purpose audio controller used to 
 In the full design, the `audio_direct_path` allows for instant loopback, and `pdm_ser` enables the FPGA to drive the audio output directly. While robust, these features consume LUTs and routing resources that are unnecessary when the goal is simply to capture audio for software processing (Whisper API). Our optimised skeleton approach strips this down to the essentials: a unidirectional pipeline from microphone to CIC Filter to FIFO to CPU.
 
 By removing `pdm_rxtx` and serialisers, we shifted the design from a complex, multi-mode controller to a dedicated streaming accelerator. This reduction not only saves FPGA resources but also simplifies the control logic. The trade-off is the loss of hardware-based playback.
+
+## Attempt of pcm-to-pdm conversion
+
+In order to increase efficiency within in signal processing, we attempted to extend our hardware design to allow for pcm-to-pdm conversion, ensuring that signals, such as the 16-bit signal from the gtts input, could be modulated into 1-bit signals whilst maintaining the quality of the signaal. Given the two pcm signals we have preent are both clean signals, i.e. have been filtered already, we only have to deal with the modulation of the signals. We chose to use a second-order sigma-delta modulator for reasons such as:
+  - providing a high snr
+  - efficiently transforming 32/16 bit pcm signals to 1-bit pcm signals without inroducing much noise
+  - the use of a sigma-delta mdulator in the software shoown in lab3, this takes a while to do in software and hence can advance the time taken to obtain these signals if passed through hardware
+
+**sigma delta photo**
+
+---
+
+The `sigmadelta.v` modulator was built with the following contsrictions accounted for:
+
+- 2-bit overshoot - allowing for 

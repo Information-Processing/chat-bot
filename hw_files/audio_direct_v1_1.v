@@ -8,7 +8,7 @@ module audio_direct_v1_1 #
         // Do not modify the parameters beyond this line
 
         // Parameters of Axi Slave Bus Interface S_AXI
-        parameter integer C_S_AXI_DATA_WIDTH = 32,
+        parameter integer C_S_AXI_DATA_WIDTH = 16,
         parameter integer C_S_AXI_ADDR_WIDTH = 5
     )
     (
@@ -16,7 +16,7 @@ module audio_direct_v1_1 #
         input wire  sel_direct,
         input wire  audio_in,
 
-        input wire [31:0] pcm_data_in,
+        input wire [15:0] pcm_data_in,
 
         output wire audio_out,
         output wire audio_shutdown,
