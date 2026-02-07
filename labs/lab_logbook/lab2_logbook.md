@@ -171,21 +171,29 @@ We discovered that the system's stability depends entirely on matching the hardw
 ### Comparison of the functionality of full design of PDM to PCM converter and our lab2 skeleton hardware optimised
 The original Base Overlay design was a general purpose audio controller used to demonstrate all capabilities of the board: direct PDM-to-PWM loopback, hardware-timed playback, and recording. As a result, the complexity of the original design is much higher, keeping significant logic that is redundant for our specific PDM-to-PCM recording application.
 
-In the full design, the `audio_direct_path` allows for instant loopback, and `pdm_ser` enables the FPGA to drive the audio output directly. While robust, these features consume LUTs and routing resources that are unnecessary when the goal is simply to capture audio for software processing (Whisper API). Our optimised skeleton approach strips this down to the essentials: a unidirectional pipeline from microphone to CIC Filter to FIFO to CPU.
-
-By removing `pdm_rxtx` and serialisers, we shifted the design from a complex, multi-mode controller to a dedicated streaming accelerator. This reduction not only saves FPGA resources but also simplifies the control logic. The trade-off is the loss of hardware-based playback.
-
-## Attempt of pcm-to-pdm conversion
-
-In order to increase efficiency within in signal processing, we attempted to extend our hardware design to allow for pcm-to-pdm conversion, ensuring that signals, such as the 16-bit signal from the gtts input, could be modulated into 1-bit signals whilst maintaining the quality of the signaal. Given the two pcm signals we have preent are both clean signals, i.e. have been filtered already, we only have to deal with the modulation of the signals. We chose to use a second-order sigma-delta modulator for reasons such as:
+  In order to increase efficiency within in signal processing, we attempted to extend our hardware design to allow for pcm-to-pdm conversion, ensuring that signals, such as the 16-bit signal from the gtts input,
+  could be modulated into 1-bit signals whilst maintaining the quality of the signaal. Given the two pcm signals we have preent are both clean signals, i.e. have been filtered already, we only have to deal with
+  the modulation of the signals. We chose to use a second-order delta-sigma modulator for reasons such as:
   - providing a high snr
   - efficiently transforming 32/16 bit pcm signals to 1-bit pcm signals without inroducing much noise
-  - the use of a sigma-delta mdulator in the software shoown in lab3, this takes a while to do in software and hence can advance the time taken to obtain these signals if passed through hardware
+  - the use of a delta-sigma mdulator in the software shoown in lab3, this takes a while to do in software and hence can advance the time taken to obtain these signals if passed through hardware
 
-**sigma delta photo**
+### Delta-sigma modulator
 
----
+The delta-sigma modulator was consturcted using these sources:
 
-The `sigmadelta.v` modulator was built with the following contsrictions accounted for:
+- [Delta-sigma basics - TI instruments](https://e2e.ti.com/blogs_/archives/b/precisionhub/posts/delta-sigma-adc-basics-understanding-the-delta-sigma-modulator)
+- [Delta-sigma modulator basics](https://www.youtube.com/watch?v=NrkFd7h6R2Y&t=27s)
+- [FPGA-based decoder for a Delta-Sigma modulator](https://imperix.com/doc/implementation/fpga-based-delta-sigma-modulator)
 
-- 2-bit overshoot - allowing for 
+The modulator consists of 3 stages, following this diagram:
+
+<p align="center"> <img src="./lab2_images/sigma-delta-ref.png" /> </p>
+
+And consisted of the following stages:
+
+1. feedback from the previous signal -this is the "delta" stage, the negative feedback allows for isolation of the quantization error which is then processed alone by the integrators 
+2. 2 integrators to provide a high loop gain at low frequencies - 2 integrators are used to give a second order modulator and ensures a cleaner signal by moving quantization noise into high frequencies (allowing for an LPF to be used)
+3. a comparator to quantize the signal - this provides the high-speed 1-bit pdm signal
+
+It is also noted that a 2-bit overshoot is used, allowing for stability within the system. Given the moduator works on a feedback loop, extra bits are required to ensure there isnt an overflow of bits causing static noise.
