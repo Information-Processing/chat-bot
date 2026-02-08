@@ -171,6 +171,10 @@ We discovered that the system's stability depends entirely on matching the hardw
 ### Comparison of the functionality of full design of PDM to PCM converter and our lab2 skeleton hardware optimised
 The original Base Overlay design was a general purpose audio controller used to demonstrate all capabilities of the board: direct PDM-to-PWM loopback, hardware-timed playback, and recording. As a result, the complexity of the original design is much higher, keeping significant logic that is redundant for our specific PDM-to-PCM recording application.
 
+---
+
+## Lab 6 extension - PCM-to-PDM converter
+
   In order to increase efficiency within in signal processing, we attempted to extend our hardware design to allow for pcm-to-pdm conversion, ensuring that signals, such as the 16-bit signal from the gtts input,
   could be modulated into 1-bit signals whilst maintaining the quality of the signaal. Given the two pcm signals we have preent are both clean signals, i.e. have been filtered already, we only have to deal with
   the modulation of the signals. We chose to use a second-order delta-sigma modulator for reasons such as:
@@ -197,3 +201,6 @@ And consisted of the following stages:
 3. a comparator to quantize the signal - this provides the high-speed 1-bit pdm signal
 
 It is also noted that a 2-bit overshoot is used, allowing for stability within the system. Given the moduator works on a feedback loop, extra bits are required to ensure there isnt an overflow of bits causing static noise.
+
+We decided to add this modulator into our `audio_direct` module. This allowed us to use this module for two things: storing the pcm stream from the microphone into a fifo; and modulating the 16-bit pcm stream from gtts into a 1-bit pdm stream which is outputted to
+the speakers.
