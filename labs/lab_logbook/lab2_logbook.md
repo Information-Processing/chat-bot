@@ -200,7 +200,7 @@ And consisted of the following stages:
 2. 2 integrators to provide a high loop gain at low frequencies - 2 integrators are used to give a second order modulator and ensures a cleaner signal by moving quantization noise into high frequencies (allowing for an LPF to be used)
 3. a comparator to quantize the signal - this provides the high-speed 1-bit pdm signal
 
-It is also noted that a 2-bit overshoot is used, allowing for stability within the system. Given the moduator works on a feedback loop, extra bits are required to ensure there isnt an overflow of bits causing static noise.
+It is also noted that a 1-bit overshoot is used, allowing for stability within the system. Given the moduator works on a feedback loop, extra bits are required to ensure there isnt an overflow of bits causing static noise.
 
 We decided to add this modulator into our `audio_direct` module. This allowed us to use this module for two things: storing the pcm stream from the microphone into a fifo; and modulating the 16-bit pcm stream from gtts into a 1-bit pdm stream which is outputted to
 the speakers.
