@@ -182,6 +182,10 @@ The original Base Overlay design was a general purpose audio controller used to 
   - efficiently transforming 32/16 bit pcm signals to 1-bit pcm signals without inroducing much noise
   - the use of a delta-sigma mdulator in the software shoown in lab3, this takes a while to do in software and hence can advance the time taken to obtain these signals if passed through hardware
 
+It must also be noted that this extension was taken from the interpolation CIC compiler extension, we chose a delta-sigma modulator over a CIC compiler because the SNR is much higher in these cases. This is because the DS modulator pushes quantization noise to 
+higher frequencies causing noise to not be heard as much being out of the audible frequency range, whereas in the CIC compiler, the noise is evenly distributed amongst frequencies causing a flat white noise across these frequencies given that 
+SNR = 10log(1.5* [2L + 1]/[pi^(2L)] * M^[2L + 1]) where L = order and M = Oversampling ratio, SNR ~ 93dB compared to the roughly 8dB SNR of a CIC filter (making it ~58* more effective as a filter)
+
 ### Delta-sigma modulator
 
 The delta-sigma modulator was consturcted using these sources:
@@ -201,6 +205,7 @@ And consisted of the following stages:
 3. a comparator to quantize the signal - this provides the high-speed 1-bit pdm signal
 
 It is also noted that a 1-bit overshoot is used, allowing for stability within the system. Given the moduator works on a feedback loop, extra bits are required to ensure there isnt an overflow of bits causing static noise.
+Also the integrators have a 7-bit overshoot to ensure there is no wrap due to binary arithmetic when obtaining the values of the integrators.
 
 We decided to add this modulator into our `audio_direct` module. This allowed us to use this module for two things: storing the pcm stream from the microphone into a fifo; and modulating the 16-bit pcm stream from gtts into a 1-bit pdm stream which is outputted to
 the speakers.
@@ -218,3 +223,43 @@ New design, pcm-to-pdm takes 3.2s:
 <p align="center"> <img src="./lab2_images/new_des.jpeg" /> </p>
 
 This leads to an overall latency change from 55s to 16s.
+
+delta-sigma.v:
+
+```
+module sigma_delta#(
+    parameter STREAM_LENGTH = 16
+)(
+    input  wire                             clk,
+    input  wire                             rst,
+    input  wire                             en,
+    input  wire signed [STREAM_LENGTH-1:0]  pcm_signal,
+    output reg                              pdm_out
+);
+
+    // Feedback logic - using 1 bit overshoot - "delta" section
+
+    localparam signed [STREAM_LENGTH:0] FB_VAL = 17'sd32767; // - 2^15 - 1 due to signed logic
+    wire signed [STREAM_LENGTH:0] fb = pdm_out ? FB_VAL : -FB_VAL;
+    wire signed [STREAM_LENGTH:0] pcm_ext = $signed(pcm_signal);
+
+    // Integrator Logic - using 7 bit overshoot - "sigma" section
+
+    reg signed [23:0] integrator_1;
+    reg signed [23:0] integrator_2;
+
+    always @(posedge clk) begin
+        if(rst) begin
+            integrator_1 <= 24'd0;
+            integrator_2 <= 24'd0;
+            pdm_out      <= 1'b0;
+        end
+        else if(en) begin
+            integrator_1 <= integrator_1 + (pcm_ext - fb);
+            integrator_2 <= integrator_2 + (integrator_1-fb);
+            pdm_out <= (integrator_2 >= 0);
+        end
+    end
+endmodule
+
+```
