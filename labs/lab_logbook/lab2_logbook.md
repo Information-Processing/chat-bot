@@ -204,3 +204,17 @@ It is also noted that a 1-bit overshoot is used, allowing for stability within t
 
 We decided to add this modulator into our `audio_direct` module. This allowed us to use this module for two things: storing the pcm stream from the microphone into a fifo; and modulating the 16-bit pcm stream from gtts into a 1-bit pdm stream which is outputted to
 the speakers.
+
+Overall this addition allowed us to half the time for PCM-to-PDM conversion by having the hardware deal with it:
+
+Original design (with software pcm-to-pdm), pcm-to-pdm takes 7.6s:
+
+
+<p align="center"> <img src="./lab2_images/old_des.jpeg" /> </p>
+
+New design, pcm-to-pdm takes 3.2s:
+
+
+<p align="center"> <img src="./lab2_images/new_des.jpeg" /> </p>
+
+This leads to an overall latency change from 55s to 16s.
